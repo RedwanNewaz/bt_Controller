@@ -10,26 +10,25 @@
 using namespace BT;
 
 typedef std::vector<std::vector<double>> COORDS;
-const std::string ROOT = "/home/redwan/colcon_ws/src/create3_controller/results/";
 struct Pose2D
 {
     double x, y, theta;
 };
 
-/**
+/**""
  * @brief Dummy action that generates a list of poses.
  */
 class GenerateWaypoints : public SyncActionNode
 {
 public:
-    GenerateWaypoints(const std::string& name, const NodeConfig& config) :
-            SyncActionNode(name, config)
+    GenerateWaypoints(const std::string& name, const NodeConfig& config, const string& filename) :
+            SyncActionNode(name, config), filename_(filename)
     {}
 
     NodeStatus tick() override
     {
         auto queue = std::make_shared<ProtectedQueue<Pose2D>>();
-        auto roomba20 = get_coordinates("subsampled20_odom_roomba20.csv");
+        auto roomba20 = get_coordinates(filename_);
         auto angles = get_angles(roomba20);
         int index = 0;
         for (const auto& point: roomba20)
@@ -60,7 +59,7 @@ private:
     }
     COORDS get_coordinates(const std::string& filename)
     {
-        rapidcsv::Document doc(ROOT + filename, rapidcsv::LabelParams(-1, -1));
+        rapidcsv::Document doc(filename, rapidcsv::LabelParams(-1, -1));
         COORDS coords;
         auto x = doc.GetColumn<double>(0);
         auto y = doc.GetColumn<double>(1);
@@ -69,6 +68,8 @@ private:
         }
         return coords;
     }
+private:
+    std::string filename_;
 
 };
 

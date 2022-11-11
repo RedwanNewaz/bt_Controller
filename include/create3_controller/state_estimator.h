@@ -5,6 +5,7 @@
 #ifndef CREATE3_CONTROLLER_STATE_ESTIMATOR_H
 #define CREATE3_CONTROLLER_STATE_ESTIMATOR_H
 #include "COM.h"
+#include "utilities/param_manager.h"
 #define STATE_DIM 5
 
 using namespace std;
@@ -14,12 +15,13 @@ typedef shared_ptr<state_estimator> StatePtr;
 class state_estimator: public enable_shared_from_this<state_estimator>
 {
 public:
-    state_estimator()
+    state_estimator(const string& param_file)
     {
         state_.resize(STATE_DIM);
         for (int i = 0; i < STATE_DIM; ++i) {
             state_[i] = 0;
         }
+        parameters = make_shared<param_manager>(param_file);
     }
     void add_cmd_vel(double v, double w)
     {
@@ -61,6 +63,8 @@ public:
     {
         return state_.at(index);
     }
+
+    ParamPtr parameters;
 private:
     std::vector<double>state_;
     std::deque<std::pair<double, double>> control_queues_;

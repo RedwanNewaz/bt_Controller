@@ -1,10 +1,20 @@
-create3_controller:
-  ros__parameters:
-    position_controller:
-      kp: 1
-      kd: 0.5
-      ki: 0.05
-    orientation_controller:
-      kp: 0.15
-      kd: 0.05
-      ki: 0.01
+path_file: "/home/roboticslab/colcon_ws/src/create3_controller/results/odom_roomba20.csv"
+controller:
+    position:
+      gains:
+        kp: 1
+        kd: 0.5
+        ki: 0.05
+      stability:
+        dt: 30 # ms
+        deadzone: 0.25 #m
+        timeout: 500 # (dt * timeout) ms
+    orientation:
+      gains:
+        kp: 0.15
+        kd: 0.05
+        ki: 0.01
+      stability:
+        dt: 30 # ms
+        deadzone: 0.15 #rad
+        timeout: 500 # (dt * timeout) ms

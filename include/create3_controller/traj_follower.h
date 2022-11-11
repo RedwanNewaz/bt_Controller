@@ -4,16 +4,20 @@
 
 #ifndef CREATE3_CONTROLLER_TRAJ_FOLLOWER_H
 #define CREATE3_CONTROLLER_TRAJ_FOLLOWER_H
-#define DEBUG(x) std::cout << x << std::endl
 #include "create3_controller/state_estimator.h"
-
+#define DEBUG(x) std::cout << x << std::endl
 #define STATE_DIM 5
+
+
 
 class TrajFollower:public rclcpp::Node
 {
 public:
+
     TrajFollower(StatePtr stateEstimator):stateEstimator_(stateEstimator),Node("create3_controller")
     {
+
+
         odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("odom", 10, std::bind(
                 &TrajFollower::odom_callback, this, std::placeholders::_1)
                 );

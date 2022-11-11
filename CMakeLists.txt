@@ -13,7 +13,9 @@ find_package(geometry_msgs REQUIRED)
 find_package(irobot_create_msgs REQUIRED)
 # uncomment the following section in order to fill in
 find_package(behaviortree_cpp REQUIRED)
-#include(cmake/CPM.cmake)
+include(cmake/CPM.cmake)
+
+CPMAddPackage("gh:jbeder/yaml-cpp#yaml-cpp-0.6.3@0.6.3")
 #add_subdirectory(third_party/BehaviorTree.CPP)
 #CPMAddPackage("gh:BehaviorTree/BehaviorTree.CPP#master")
 
@@ -36,7 +38,7 @@ set_source_files_properties(COM.cpp PROPERTIES COMPILE_FLAGS "-include include/C
 
 add_executable(create3_controller_node src/create3_controller_node.cpp
         src/pid.cpp
-        include/create3_controller/traj_follower.h include/create3_controller/state_estimator.h)
+        include/create3_controller/traj_follower.h include/create3_controller/state_estimator.h include/utilities/param_manager.h)
 
 
 target_link_libraries(create3_controller_node
@@ -46,6 +48,7 @@ target_link_libraries(create3_controller_node
         ${nav_msgs_LIBRARIES}
 #        behaviortree_cpp
         BT::behaviortree_cpp
+        yaml-cpp
         COM
         )
 
@@ -59,6 +62,11 @@ install(TARGETS create3_controller_node
 
 install(DIRECTORY launch
         DESTINATION share/${PROJECT_NAME})
+
+install(
+        DIRECTORY lib/
+        DESTINATION lib
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

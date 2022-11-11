@@ -19,10 +19,14 @@ public:
     {
         x_ = stateEstimator_->at(0);
         y_ = stateEstimator_->at(1);
-        dt_ = 30; // ms
-        goal_thres_ = 0.25; // m
-        timeout_ = 250; // (dt * timeout) ms
-        init(dt_/ 1000.0, 1, -1, 1, 0.5, 0.050);
+
+        auto stability = stateEstimator->parameters->get_position_stability();
+        dt_ = stability.dt; // ms
+        goal_thres_ = stability.deadzone; // m
+        timeout_ = stability.timeout; // (dt * timeout) ms
+
+        auto gains = stateEstimator->parameters->get_orientation_gains();
+        init(dt_ / 1000.0, 1, -1, gains.kp, gains.kd, gains.ki);
     }
 
     NodeStatus tick() override

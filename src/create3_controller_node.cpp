@@ -30,12 +30,11 @@ static const char* xml_A = R"(
 
 
 
-
-
-
 int main(int argc, char ** argv)
 {
-    std::string roomba20("subsampled20_odom_roomba20.csv"), roomba21("subsampled20_roomba21.csv");
+    rclcpp::init(argc, argv);
+
+
 
     BehaviorTreeFactory factory;
 
@@ -43,25 +42,28 @@ int main(int argc, char ** argv)
     factory.registerNodeType<QueueSize<Pose2D>>("QueueSize");
     factory.registerNodeType<ConsumeQueue<Pose2D>>("ConsumeQueue");
 
-    factory.registerNodeType<GenerateWaypoints>("GenerateWaypoints");
 
-    StatePtr stateEstimator = make_shared<state_estimator>();
 
+    StatePtr stateEstimator = make_shared<state_estimator>(argv[1]);
+
+    factory.registerNodeType<GenerateWaypoints>("GenerateWaypoints", stateEstimator->parameters->get_path_file());
     factory.registerNodeType<PositionController>("PositionController", stateEstimator->get_ptr());
     factory.registerNodeType<OrientationController>("OrientationController", stateEstimator->get_ptr());
 
 
-    auto tree = factory.createTreeFromText(xml_A);
-//    tree.tickWhileRunning();
-//    std::cout << "--------------" << std::endl;
-//
 
-
-
-    rclcpp::init(argc, argv);
     rclcpp::executors::MultiThreadedExecutor executor;
     auto node1 = std::make_shared<TrajFollower>(stateEstimator->get_ptr());
     executor.add_node(node1);
+
+
+    auto tree = factory.createTreeFromText(xml_A);
+
+
+
+
+
+
 
     while (rclcpp::ok())
     {

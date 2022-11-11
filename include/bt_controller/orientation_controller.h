@@ -19,11 +19,15 @@ public:
             ThreadedAction(name, config), stateEstimator_(stateEstimator)
     {
         heading_angle_ = stateEstimator_->at(2);
-//      dt  double max, double min, double Kp, double Kd, double Ki
-        dt_ = 30; // ms
-        goal_thres_ = 0.15; // radian
-        timeout_ = 250; // (dt * timeout) ms
-        init(dt_ / 1000.0, 1, -1, 0.15, 0.05, 0.01);
+
+        auto stability = stateEstimator->parameters->get_orientation_stability();
+        dt_ = stability.dt; // ms
+        goal_thres_ = stability.deadzone; // radian
+        timeout_ = stability.timeout; // (dt * timeout) ms
+
+        //      dt  double max, double min, double Kp, double Kd, double Ki
+        auto gains = stateEstimator->parameters->get_position_gains();
+        init(dt_ / 1000.0, 1, -1, gains.kp, gains.kd, gains.ki);
     }
 
     NodeStatus tick() override
