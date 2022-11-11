@@ -1,0 +1,3 @@
+[submodule "3rdparty/BehaviorTree.CPP"]
+	path = 3rdparty/BehaviorTree.CPP
+	url = https://github.com/BehaviorTree/BehaviorTree.CPP

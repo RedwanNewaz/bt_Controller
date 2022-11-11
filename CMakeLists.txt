@@ -1,0 +1,76 @@
+cmake_minimum_required(VERSION 3.8)
+project(create3_controller)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+set(CMAKE_CXX_STANDARD 17)
+# find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(irobot_create_msgs REQUIRED)
+# uncomment the following section in order to fill in
+find_package(behaviortree_cpp REQUIRED)
+#include(cmake/CPM.cmake)
+#add_subdirectory(third_party/BehaviorTree.CPP)
+#CPMAddPackage("gh:BehaviorTree/BehaviorTree.CPP#master")
+
+link_directories(/usr/local/lib)
+
+# further dependencies manually.
+# find_package(<dependency> REQUIRED)
+include_directories(include
+        ${rclcpp_INCLUDE_DIRS}
+        ${nav_msgs_INCLUDE_DIRS}
+        ${geometry_msgs_INCLUDE_DIRS}
+        ${irobot_create_msgs_INCLUDE_DIRS}
+        ${behaviortree_cpp_INCLUDE_DIRS}
+#        ${CMAKE_BINARY_DIR}/_deps/behaviortree.cpp-src/include
+        )
+
+add_library(COM include/COM.h src/COM.cpp)
+set_source_files_properties(COM.cpp PROPERTIES COMPILE_FLAGS "-include include/COM.h")
+
+
+add_executable(create3_controller_node src/create3_controller_node.cpp
+        src/pid.cpp
+        include/create3_controller/traj_follower.h include/create3_controller/state_estimator.h)
+
+
+target_link_libraries(create3_controller_node
+        ${rclcpp_LIBRARIES}
+        ${geometry_msgs_LIBRARIES}
+        ${irobot_create_msgs_LIBRARIES}
+        ${nav_msgs_LIBRARIES}
+#        behaviortree_cpp
+        BT::behaviortree_cpp
+        COM
+        )
+
+target_include_directories(create3_controller_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(create3_controller_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+
+install(TARGETS create3_controller_node
+  DESTINATION lib/${PROJECT_NAME})
+
+install(DIRECTORY launch
+        DESTINATION share/${PROJECT_NAME})
+
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # uncomment the line when a copyright and license is not present in all source files
+  #set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # uncomment the line when this package is not in a git repo
+  #set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+endif()
+
+ament_package()
+
+

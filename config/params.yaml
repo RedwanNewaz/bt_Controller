@@ -1,0 +1,10 @@
+create3_controller:
+  ros__parameters:
+    position_controller:
+      kp: 1
+      kd: 0.5
+      ki: 0.05
+    orientation_controller:
+      kp: 0.15
+      kd: 0.05
+      ki: 0.01

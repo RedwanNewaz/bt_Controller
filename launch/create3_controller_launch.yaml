@@ -1,0 +1,23 @@
+launch:
+  - node:
+      pkg: "create3_controller"
+      exec: "create3_controller_node"
+      name: "roomba20"
+      namespace: "irobot"
+      output: "screen"
+      param:
+        - name: "position_controller/kp"
+          value: "1"
+        - name: "position_controller/kd"
+          value: "0.5"
+        - name: "position_controller/ki"
+          value: "0.05"
+
+        - name: "orientation_controller/kp"
+          value: "0.15"
+        - name: "orientation_controller/kd"
+          value: "0.05"
+        - name: "orientation_controller/ki"
+          value: "0.01"
+
+
