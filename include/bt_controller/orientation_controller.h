@@ -28,6 +28,8 @@ public:
         //      dt  double max, double min, double Kp, double Kd, double Ki
         auto gains = stateEstimator->parameters->get_position_gains();
         init(dt_ / 1000.0, 1, -1, gains.kp, gains.kd, gains.ki);
+
+        DEBUG(gains);
     }
 
     NodeStatus tick() override

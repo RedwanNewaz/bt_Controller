@@ -15,10 +15,20 @@ class param_manager;
 typedef shared_ptr<param_manager> ParamPtr;
 struct PIDGains{
     double kp, kd, ki;
+
+    friend ostream &operator<<(ostream &os, const PIDGains &gains) {
+        os << "kp: " << gains.kp << " kd: " << gains.kd << " ki: " << gains.ki;
+        return os;
+    }
 };
 
 struct PIDStability{
     double dt, deadzone, timeout;
+
+    friend ostream &operator<<(ostream &os, const PIDStability &stability) {
+        os << "dt: " << stability.dt << " deadzone: " << stability.deadzone << " timeout: " << stability.timeout;
+        return os;
+    }
 };
 
 class param_manager: enable_shared_from_this<param_manager>{

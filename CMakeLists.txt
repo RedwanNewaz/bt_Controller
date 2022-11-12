@@ -11,6 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(irobot_create_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 # uncomment the following section in order to fill in
 find_package(behaviortree_cpp REQUIRED)
 include(cmake/CPM.cmake)
@@ -28,6 +29,7 @@ include_directories(include
         ${nav_msgs_INCLUDE_DIRS}
         ${geometry_msgs_INCLUDE_DIRS}
         ${irobot_create_msgs_INCLUDE_DIRS}
+        ${visualization_msgs_INCLUDE_DIRS}
         ${behaviortree_cpp_INCLUDE_DIRS}
 #        ${CMAKE_BINARY_DIR}/_deps/behaviortree.cpp-src/include
         )
@@ -38,7 +40,7 @@ set_source_files_properties(COM.cpp PROPERTIES COMPILE_FLAGS "-include include/C
 
 add_executable(create3_controller_node src/create3_controller_node.cpp
         src/pid.cpp
-        include/create3_controller/traj_follower.h include/create3_controller/state_estimator.h include/utilities/param_manager.h)
+        include/create3_controller/traj_follower.h include/create3_controller/state_estimator.h include/utilities/param_manager.h include/utilities/viz_objects.h)
 
 
 target_link_libraries(create3_controller_node
@@ -46,6 +48,7 @@ target_link_libraries(create3_controller_node
         ${geometry_msgs_LIBRARIES}
         ${irobot_create_msgs_LIBRARIES}
         ${nav_msgs_LIBRARIES}
+        ${visualization_msgs_LIBRARIES}
 #        behaviortree_cpp
         BT::behaviortree_cpp
         yaml-cpp

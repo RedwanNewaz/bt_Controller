@@ -2,7 +2,7 @@ path_file: "/home/roboticslab/colcon_ws/src/create3_controller/results/odom_room
 controller:
     position:
       gains:
-        kp: 1
+        kp: 0.5
         kd: 0.5
         ki: 0.05
       stability:
@@ -11,10 +11,10 @@ controller:
         timeout: 500 # (dt * timeout) ms
     orientation:
       gains:
-        kp: 0.15
+        kp: 0.10
         kd: 0.05
         ki: 0.01
       stability:
         dt: 30 # ms
-        deadzone: 0.15 #rad
+        deadzone: 0.1 #rad
         timeout: 500 # (dt * timeout) ms

@@ -27,6 +27,7 @@ public:
 
         auto gains = stateEstimator->parameters->get_orientation_gains();
         init(dt_ / 1000.0, 1, -1, gains.kp, gains.kd, gains.ki);
+        DEBUG(gains);
     }
 
     NodeStatus tick() override
