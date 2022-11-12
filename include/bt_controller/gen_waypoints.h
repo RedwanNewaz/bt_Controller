@@ -47,13 +47,16 @@ private:
     std::vector<double> get_angles(const COORDS& points)
     {
         std::vector<double> angles(points.size());
-        for (int i = 1; i < points.size(); ++i) {
-            double dx = points[i][0] - points[i-1][0];
-            double dy = points[i][1] - points[i-1][1];
-            angles[i] = atan2(dy, dx);
-        }
+//        for (int i = 1; i < points.size(); ++i) {
+//            double dx = points[i][0] - points[i-1][0];
+//            double dy = points[i][1] - points[i-1][1];
+//            angles[i] = atan2(dy, dx);
+//        }
 
-        angles[0] = angles[1];
+//        angles[0] = angles[1];
+        for (int i = 0; i < points.size(); ++i) {
+            angles[i] = atan2(points[i][1], points[i][0]);
+        }
         return angles;
 
     }

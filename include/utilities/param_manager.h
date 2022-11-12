@@ -69,6 +69,10 @@ public:
     {
         return path_file_;
     }
+    string get_xml_file()
+    {
+        return xml_file_;
+    }
 protected:
     void parse_file(YAML::Node& config)
     {
@@ -90,13 +94,14 @@ protected:
 
 
         path_file_ = config["path_file"].as<string>();
+        xml_file_ = config["xml_file"].as<string>();
     }
 
 
 private:
     const string param_file_;
 
-    std::string path_file_;
+    std::string path_file_, xml_file_;
     PIDGains positionGains_, orientationGains_;
     PIDStability positionStability_, orientationStatbility_;
 

@@ -53,6 +53,8 @@ public:
         state_[2] = q.getAngle();
         state_[3] = msg->twist.twist.linear.x;
         state_[4] = msg->twist.twist.angular.z;
+
+//        DEBUG("[state_estimator]: updated " << state_[0] << " " << state_[1] << " " << state_[2] );
     }
     StatePtr get_ptr()
     {

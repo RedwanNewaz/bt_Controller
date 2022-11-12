@@ -1,0 +1,23 @@
+<root main_tree_to_execute = "TreeA" >
+    <BehaviorTree ID="TreeA">
+        <Sequence>
+            <GenerateWaypoints waypoints="{waypoints}" />
+            <QueueSize queue="{waypoints}" size="{wp_size}" />
+            <Repeat num_cycles="{wp_size}" >
+                <Sequence>
+                    <PopFromQueue  queue="{waypoints}" popped_item="{wp}" />
+                    <Inverter>
+                        <KeepRunningUntilFailure>
+                            <Inverter>
+                                <Sequence>
+                                    <OrientationController waypoint="{wp}" />
+                                    <PositionController waypoint="{wp}" />
+                                </Sequence>
+                            </Inverter>
+                        </KeepRunningUntilFailure>
+                    </Inverter>
+                </Sequence>
+            </Repeat>
+        </Sequence>
+    </BehaviorTree>
+</root>

@@ -40,7 +40,7 @@ set_source_files_properties(COM.cpp PROPERTIES COMPILE_FLAGS "-include include/C
 
 add_executable(create3_controller_node src/create3_controller_node.cpp
         src/pid.cpp
-        include/create3_controller/traj_follower.h include/create3_controller/state_estimator.h include/utilities/param_manager.h include/utilities/viz_objects.h)
+        include/create3_controller/traj_follower.h include/create3_controller/state_estimator.h include/utilities/param_manager.h include/utilities/viz_objects.h include/create3_controller/bt_executor.h)
 
 
 target_link_libraries(create3_controller_node

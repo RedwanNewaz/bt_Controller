@@ -35,40 +35,29 @@ public:
     NodeStatus tick() override
     {
         Pose2D wp;
-        if (getInput("waypoint", wp))
-        {
+
+        if (getInput("waypoint", wp)) {
+
+
+
             heading_angle_ = stateEstimator_->at(2);
-            double error = fabs(wp.theta - heading_angle_);
-            int step = 0;
-            std::cout << "[Orientation Controller]: chasing " << wp.theta << " | current heading " << heading_angle_ << std::endl;
-            while (error > goal_thres_)
-            {
-                heading_angle_ = stateEstimator_->at(2);
-//                double w = calculate(wp.theta, heading_angle_);
+            double dx, dy;
+            dx = wp.x - stateEstimator_->at(0);
+            dy = wp.y - stateEstimator_->at(1);
+            double alpha = atan2(dy, dx);
+//            heading_angle_ = fmod(( atan2(y_, x_) - heading_angle_ + M_PI), 2 * M_PI) - M_PI;
+            double error = fabs(fmod((alpha - heading_angle_ + M_PI), 2 * M_PI) - M_PI);
 
-                double w = (wp.theta > heading_angle_)?calculate(wp.theta, heading_angle_):calculate( heading_angle_, wp.theta);
-                // keep the angle between [-pi, pi]
-//                heading_angle_ = fmod((heading_angle_ + w * dt_) + M_PI, 2 * M_PI) - M_PI;
+            if (error > goal_thres_) {
+                std::cout << "[Orientation Controller]: chasing " << alpha << " | current heading " << heading_angle_;
+                double w = calculate( alpha, heading_angle_);
                 stateEstimator_->add_cmd_vel(0, w);
-
-                std::this_thread::sleep_for(std::chrono::milliseconds(dt_));
-                double error1 = fabs(wp.theta - heading_angle_);
-                double error2 = fabs(2 * M_PI - error1);
-                error = std::min(error1, error2);
-//                if(++step > timeout_)
-//                {
-//                    std::cout << "[Orientation Controller]: skipped deadlock \n";
-//                    break;
-//                }
+                std::cout << "| heading = " << heading_angle_ << " | error = " << error << std::endl;
             }
-            std::cout << "[Orientation Controller]: " << heading_angle_ << " | error = " << error << std::endl;
 
-            return NodeStatus::SUCCESS;
+            return (error <= goal_thres_) ? NodeStatus::SUCCESS : NodeStatus::FAILURE;
         }
-        else
-        {
-            return NodeStatus::FAILURE;
-        }
+        return NodeStatus::SUCCESS;
     }
 
     static PortsList providedPorts()

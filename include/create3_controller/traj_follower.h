@@ -18,7 +18,7 @@ public:
     {
 
 
-        odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("odom", 10, std::bind(
+        odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(
                 &TrajFollower::odom_callback, this, std::placeholders::_1)
                 );
         cmd_vel_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel",1);
@@ -37,6 +37,7 @@ private:
     }
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
     {
+//        RCLCPP_INFO(this->get_logger(), "odom message received");
         stateEstimator_->odom_callback(msg);
     }
 

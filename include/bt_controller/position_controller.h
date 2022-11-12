@@ -20,6 +20,10 @@ public:
         x_ = stateEstimator_->at(0);
         y_ = stateEstimator_->at(1);
 
+
+        auto ori_stability = stateEstimator->parameters->get_orientation_stability();
+        ori_thres_ = ori_stability.deadzone;
+
         auto stability = stateEstimator->parameters->get_position_stability();
         dt_ = stability.dt; // ms
         goal_thres_ = stability.deadzone; // m
@@ -27,52 +31,46 @@ public:
 
         auto gains = stateEstimator->parameters->get_orientation_gains();
         init(dt_ / 1000.0, 1, -1, gains.kp, gains.kd, gains.ki);
+        count_ = 0;
         DEBUG(gains);
     }
 
     NodeStatus tick() override
     {
         Pose2D wp;
-        if (getInput("waypoint", wp))
-        {
-            double theta = wp.theta;
-            double error = get_distance(wp.x, wp.y);
-            std::cout << "[Position Controller]: chasing " << wp.x << ", " << wp.y << std::endl;
+        if (getInput("waypoint", wp)) {
 
-            int step = 0;
-            while (error > goal_thres_)
-            {
-                error = get_distance(wp.x, wp.y);
-                auto desire = sqrt(wp.x * wp.x + wp.y * wp.y);
-                auto curr = sqrt(x_ * x_ + y_ * y_);
+            double theta = stateEstimator_->at(2);
+            double heading_error = fabs(fmod((wp.theta - theta + M_PI), 2 * M_PI) - M_PI);
+
+//            double x, y;
+            x_ = stateEstimator_->at(0);
+            y_ = stateEstimator_->at(1);
+            double alpha = atan2(y_, x_);
+
+            auto desire = sqrt(wp.x * wp.x + wp.y * wp.y);
+            auto curr = sqrt(x_ * x_ + y_ * y_);
+
+            double error = fabs(desire-curr);
+
+            if(heading_error > ori_thres_)
+                std::cout << "[Position Controller]: heading error cross limits " << wp.theta << " > " <<theta;
+
+            if (heading_error <= ori_thres_ &&  error > goal_thres_) {
+                std::cout << "[Position Controller]: chasing " << wp.x << ", " << wp.y;
                 double v = calculate(desire, curr);
                 stateEstimator_->add_cmd_vel(v, 0);
-//                x_ += v * cos(theta);
-//                y_ += v * sin(theta);
-                x_ = stateEstimator_->at(0);
-                y_ = stateEstimator_->at(1);
-                std::this_thread::sleep_for(std::chrono::milliseconds(dt_));
-
-//                if(++step > timeout_)
-//                {
-//                    std::cout << "[Position Controller]: skipped deadlock \n";
-//                    break;
-//                }
+                std::cout << "| position = " << x_ << ", " << y_ << " | error = " << error << std::endl;
             }
 
-            std::cout << "[Position Controller]: " << x_ << ", " << y_ << " | error = " << error  << " step = "<< step <<std::endl;
-            return NodeStatus::SUCCESS;
+            return (heading_error <= ori_thres_ && error <= goal_thres_) ? NodeStatus::SUCCESS : NodeStatus::FAILURE;
         }
-        else
-        {
-            return NodeStatus::FAILURE;
-        }
+        return NodeStatus::SUCCESS;
     }
 
-    double get_distance(double x, double y)
+
+    double get_distance(double dx, double dy)
     {
-        double dx = x - x_;
-        double dy = y - y_;
         return sqrt(dx * dx + dy * dy);
     }
 
@@ -84,7 +82,8 @@ private:
     double x_, y_;
     int dt_;
     int timeout_;
-    double goal_thres_;
+    double goal_thres_, ori_thres_;
     StatePtr stateEstimator_;
+    int count_;
 };
 #endif //BT_CONTROLLER_POSITION_CONTROLLER_H
