@@ -101,6 +101,7 @@ private:
     }
 
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg){
+        const std::lock_guard<mutex> lk(mu_);
         stateEstimator_->odom_callback(msg);
 
     }
@@ -122,6 +123,7 @@ private:
     }
 
     void rviz_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg){
+        const std::lock_guard<mutex> lk(mu_);
         goal_pose_ = state_estimator::poseToTransform(msg);
         initialized_ = true;
         publish_obstacles();
@@ -140,6 +142,7 @@ private:
 
     void publish_cmd(double v, double w)
     {
+        const std::lock_guard<mutex> lk(mu_);
         geometry_msgs::msg::Twist cmd_vel;
         cmd_vel.linear.x = v;
         cmd_vel.angular.z = w;
