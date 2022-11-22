@@ -20,11 +20,14 @@ public:
                 &viz_objects::rviz_callback, this, std::placeholders::_1)
         );
         marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("/dwa_create3", 10);
+        obs_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>("/obstacles", 10, [&](const geometry_msgs::msg::PoseArray::SharedPtr msg)
+        {return obscacle_callback(msg);});
     }
 
 
 private:
     rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr traj_sub_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr obs_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr rviz_sub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
     void short_horizon_traj_callback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
@@ -35,6 +38,33 @@ private:
             path.push_back({pose.position.x, pose.position.y, pose.position.z});
         }
         auto marker = gen_traj(path);
+        marker_pub_->publish(marker);
+
+    }
+
+     void obscacle_callback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
+    {
+        MARKER marker;
+        marker.header.frame_id = "odom";
+
+        marker.header.stamp = this->get_clock()->now();
+        marker.ns = "create3";
+        marker.id = 2;
+        marker.type = visualization_msgs::msg::Marker::POINTS;
+
+        marker.scale.x = 0.5;
+        marker.scale.y = 0.5;
+        marker.scale.z = 0.5;
+
+        marker.color.a = 0.75;
+        marker.color.r = 1.0 ;
+        marker.color.g = 0.0;
+        marker.color.b = 0.0;
+       
+        for(auto& pose: msg->poses)
+        {
+            marker.points.push_back(pose.position);
+        }
         marker_pub_->publish(marker);
 
     }
