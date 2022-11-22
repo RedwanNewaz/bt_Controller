@@ -53,11 +53,11 @@ private:
         marker.id = 101;
         marker.type = visualization_msgs::msg::Marker::CUBE_LIST;
 
-        marker.scale.x = 0.75;
-        marker.scale.y = 0.75;
-        marker.scale.z = 0.75;
+        marker.scale.x = 0.95;
+        marker.scale.y = 0.95;
+        marker.scale.z = 0.95;
 
-        marker.color.a = 0.75;
+        marker.color.a = 0.95;
         marker.color.r = 1.0 ;
         marker.color.g = 0.0;
         marker.color.b = 0.0;
