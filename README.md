@@ -27,3 +27,10 @@ ros2 param set /motion_control safety_override full
 ```
 
 
+
+## create ros package 
+
+```bash 
+ros2 pkg create --build-type ament_cmake --node-name create3_path_follower create3_path_follower \
+    --dependencies rclcpp tf visualization_msgs nav_msgs geometry_msgs irobot_create_msgs
+```

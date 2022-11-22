@@ -13,7 +13,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(irobot_create_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 # uncomment the following section in order to fill in
-find_package(behaviortree_cpp REQUIRED)
+
 include(cmake/CPM.cmake)
 
 CPMAddPackage("gh:jbeder/yaml-cpp#yaml-cpp-0.6.3@0.6.3")
@@ -30,17 +30,20 @@ include_directories(include
         ${geometry_msgs_INCLUDE_DIRS}
         ${irobot_create_msgs_INCLUDE_DIRS}
         ${visualization_msgs_INCLUDE_DIRS}
-        ${behaviortree_cpp_INCLUDE_DIRS}
 #        ${CMAKE_BINARY_DIR}/_deps/behaviortree.cpp-src/include
         )
 
-add_library(COM include/COM.h src/COM.cpp)
+add_library(COM include/COM.h src/COM.cpp include/utilities/param_manager2.h)
 set_source_files_properties(COM.cpp PROPERTIES COMPILE_FLAGS "-include include/COM.h")
 
 
 add_executable(create3_controller_node src/create3_controller_node.cpp
-        src/pid.cpp
-        include/create3_controller/traj_follower.h include/create3_controller/state_estimator.h include/utilities/param_manager.h include/utilities/viz_objects.h include/create3_controller/bt_executor.h)
+        src/dwa_planner.cpp
+        include/create3_controller/dwa_planner.h
+        include/create3_controller/state_estimator.h
+        include/utilities/param_manager2.h
+        include/utilities/viz_objects.h
+        )
 
 
 target_link_libraries(create3_controller_node
@@ -49,8 +52,6 @@ target_link_libraries(create3_controller_node
         ${irobot_create_msgs_LIBRARIES}
         ${nav_msgs_LIBRARIES}
         ${visualization_msgs_LIBRARIES}
-#        behaviortree_cpp
-        BT::behaviortree_cpp
         yaml-cpp
         COM
         )
@@ -66,10 +67,10 @@ install(TARGETS create3_controller_node
 install(DIRECTORY launch
         DESTINATION share/${PROJECT_NAME})
 
-install(
-        DIRECTORY lib/
-        DESTINATION lib
-)
+#install(
+#        DIRECTORY lib/
+#        DESTINATION lib
+#)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
