@@ -23,7 +23,7 @@ protected:
     void timer_callback();
     void odom_callback(nav_msgs::msg::Odometry::SharedPtr msg);
     void rviz_callback(geometry_msgs::msg::PoseStamped::SharedPtr msg);
-    void obscacle_callback(geometry_msgs::msg::PoseArray::SharedPtr msg);
+    void obstacle_callback(geometry_msgs::msg::PoseArray::SharedPtr msg);
 
 protected:
     void publish_cmd(double v, double w);
