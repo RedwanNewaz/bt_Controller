@@ -6,28 +6,33 @@
 
 dwa_planner_ros::dwa_planner_ros(StatePtr stateEstimator):Node("DWA"), stateEstimator_(stateEstimator) {
     initialized_ = false;
+
+    // create subscribers
     odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(
             &dwa_planner_ros::odom_callback, this, std::placeholders::_1)
     );
-
+    obs_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>("/obstacles", 10, [&](const geometry_msgs::msg::PoseArray::SharedPtr msg)
+    {return obscacle_callback(msg);});
     rviz_sub_ = this->create_subscription<geometry_msgs::msg::PoseStamped>("/goal_pose", 10, std::bind(
             &dwa_planner_ros::rviz_callback, this, std::placeholders::_1)
     );
+
+    // create publishers
     cmd_vel_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel",1);
-    timer_ = this->create_wall_timer(
-            30ms, std::bind(&dwa_planner_ros::timer_callback, this));
+    traj_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/short_traj", 10);
+    obs_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/obstacles", 10);
+    timer_ = this->create_wall_timer(30ms, std::bind(&dwa_planner_ros::timer_callback, this));
+
+    // initialize internal parameters
     control_[0] = control_[1] = 0;
     std::function<double(const string&)> f = [&](const string& param)
     {return stateEstimator_->parameters->get_param<double>(param);};
     config_.update_param(f);
-    traj_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/short_traj", 10);
-    obs_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/obstacles", 10);
-
-    obs_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>("/obstacles", 10, [&](const geometry_msgs::msg::PoseArray::SharedPtr msg)
-    {return obscacle_callback(msg);});
-
     stateEstimator_->parameters->get_obstacles(obstacles_);
 }
+
+
+//-------------------------------MAIN LOOP--------------------------------------------------------
 
 void dwa_planner_ros::timer_callback() {
 
@@ -42,6 +47,7 @@ void dwa_planner_ros::timer_callback() {
     tf2::Vector3 position_diff = goal_position - curr_position;
     double current_angle = tf2::getYaw(current_pose.getRotation());
 
+    // compute terminal condition
     double remainDist = sqrt(pow(position_diff.x(), 2) + pow(position_diff.y(), 2) );
     Point goal;
     goal[0] = goal_position.x();
@@ -67,6 +73,9 @@ void dwa_planner_ros::timer_callback() {
 
 }
 
+
+//-------------------------------ROS SUBSCRIBERS--------------------------------------------------------
+
 void dwa_planner_ros::odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     const std::lock_guard<mutex> lk(mu_);
     stateEstimator_->odom_callback(msg);
@@ -88,6 +97,8 @@ void dwa_planner_ros::obscacle_callback(const geometry_msgs::msg::PoseArray::Sha
         obstacles_.push_back({pose.position.x, pose.position.y});
     }
 }
+
+//-------------------------------ROS PUBLISHERS--------------------------------------------------------
 
 void dwa_planner_ros::publish_cmd(double v, double w) {
     geometry_msgs::msg::Twist cmd_vel;
