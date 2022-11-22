@@ -31,7 +31,7 @@ public:
         {return obscacle_callback(msg);});
 
         stateEstimator_->parameters->get_obstacles(ob);
-        publish_obstacles();
+
     }
 private:
     bool initialized_;
@@ -48,12 +48,14 @@ private:
     Obstacle ob;
     tf2::Transform goal_pose_;
     std::mutex mu_;
+    std::once_flag obs_flag_;
 
     void timer_callback()
     {
         if(!initialized_)
             return;
-        
+
+
         auto goal_position = goal_pose_.getOrigin();
         tf2::Transform current_pose = stateEstimator_->getCurrentPose();
         auto curr_position = current_pose.getOrigin();
@@ -103,6 +105,7 @@ private:
     void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg){
         const std::lock_guard<mutex> lk(mu_);
         stateEstimator_->odom_callback(msg);
+        std::call_once(obs_flag_, [&](){ publish_obstacles(); });
 
     }
 
@@ -142,7 +145,6 @@ private:
 
     void publish_cmd(double v, double w)
     {
-        const std::lock_guard<mutex> lk(mu_);
         geometry_msgs::msg::Twist cmd_vel;
         cmd_vel.linear.x = v;
         cmd_vel.angular.z = w;
