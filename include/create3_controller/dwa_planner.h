@@ -37,6 +37,7 @@ namespace DynamicWindow{
         double predict_time = 3.0;
         double to_goal_cost_gain = 1.0;
         double speed_cost_gain = 0.10;
+        double to_obstacle_cost_gain = 1.0;
 
         double goal_radius = 1.0;
 
@@ -57,6 +58,7 @@ namespace DynamicWindow{
             predict_time = f("predict_time");
             to_goal_cost_gain = f("to_goal_cost_gain");
             speed_cost_gain = f("speed_cost_gain");
+            to_obstacle_cost_gain = f("to_obstacle_cost_gain");
 
             goal_radius = f("goal_radius");
         }

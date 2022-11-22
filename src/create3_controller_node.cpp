@@ -3,6 +3,7 @@
 #include "create3_controller/state_estimator.h"
 #include "utilities/viz_objects.h"
 #include "create3_controller/dwa_planner.h"
+#include <mutex>
 
 class DWA: public rclcpp::Node{
 public:
@@ -24,13 +25,18 @@ public:
         {return stateEstimator_->parameters->get_param<double>(param);};
         config.update_param(f);
         traj_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/short_traj", 10);
+        obs_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/obstacles", 10);
+
         obs_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>("/obstacles", 10, [&](const geometry_msgs::msg::PoseArray::SharedPtr msg)
         {return obscacle_callback(msg);});
+
+        stateEstimator_->parameters->get_obstacles(ob);
+        publish_obstacles();
     }
 private:
     bool initialized_;
     StatePtr stateEstimator_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr traj_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr traj_pub_, obs_pub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr obs_sub_;
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
@@ -41,6 +47,7 @@ private:
     Control u;
     Obstacle ob;
     tf2::Transform goal_pose_;
+    std::mutex mu_;
 
     void timer_callback()
     {
@@ -71,7 +78,7 @@ private:
             publish_short_horizon_traj(ltraj);
         }
 
-        RCLCPP_INFO(this->get_logger(),"[remaining = %lf] v = %lf | w = %lf", remainDist, u[0], u[1]);
+//        RCLCPP_INFO(this->get_logger(),"[remaining = %lf] v = %lf | w = %lf", remainDist, u[0], u[1]);
         publish_cmd(u[0], u[1]);
         stateEstimator_->add_cmd_vel(u[0], u[1]);
 
@@ -98,13 +105,31 @@ private:
 
     }
 
+    void publish_obstacles()
+    {
+        geometry_msgs::msg::PoseArray msg;
+        msg.header.stamp = this->get_clock()->now();
+
+        for(auto &item:ob)
+        {
+            geometry_msgs::msg::Pose pose;
+            pose.position.x = item[0];
+            pose.position.y = item[1];
+            pose.position.z = 0;
+            msg.poses.push_back(pose);
+        }
+        obs_pub_->publish(msg);
+    }
+
     void rviz_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg){
         goal_pose_ = state_estimator::poseToTransform(msg);
         initialized_ = true;
+        publish_obstacles();
     }
 
     void obscacle_callback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
     {
+        const std::lock_guard<mutex> lk(mu_);
         ob.clear();
         for(auto& pose: msg->poses)
         {

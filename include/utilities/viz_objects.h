@@ -21,7 +21,7 @@ public:
         );
         marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("/dwa_create3", 10);
         obs_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>("/obstacles", 10, [&](const geometry_msgs::msg::PoseArray::SharedPtr msg)
-        {return obscacle_callback(msg);});
+        {return obstacle_callback(msg);});
     }
 
 
@@ -42,28 +42,34 @@ private:
 
     }
 
-     void obscacle_callback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
+     void obstacle_callback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
     {
+
         MARKER marker;
         marker.header.frame_id = "odom";
 
         marker.header.stamp = this->get_clock()->now();
-        marker.ns = "create3";
-        marker.id = 2;
-        marker.type = visualization_msgs::msg::Marker::POINTS;
+        marker.ns = "obstacles";
+        marker.id = 101;
+        marker.type = visualization_msgs::msg::Marker::CUBE_LIST;
 
-        marker.scale.x = 0.5;
-        marker.scale.y = 0.5;
-        marker.scale.z = 0.5;
+        marker.scale.x = 0.75;
+        marker.scale.y = 0.75;
+        marker.scale.z = 0.75;
 
         marker.color.a = 0.75;
         marker.color.r = 1.0 ;
         marker.color.g = 0.0;
         marker.color.b = 0.0;
-       
+        RCLCPP_INFO(this->get_logger(), "reading obstacle positions");
         for(auto& pose: msg->poses)
         {
-            marker.points.push_back(pose.position);
+            geometry_msgs::msg::Point p;
+            p.x = pose.position.x;
+            p.y = pose.position.y;
+            p.z = 0;
+            RCLCPP_INFO(this->get_logger(), "[obstacles viz]: x = %lf | y = %lf ", p.x, p.y);
+            marker.points.push_back(p);
         }
         marker_pub_->publish(marker);
 

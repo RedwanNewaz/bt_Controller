@@ -12,8 +12,8 @@ launch:
         arg:
         -
             name: 'x'
-            value: '5'
+            value: '0'
         -
             name: 'y'
-            value: '5'
+            value: '0'
 

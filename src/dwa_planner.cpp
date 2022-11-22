@@ -76,14 +76,21 @@ double DynamicWindow::planner::calc_obstacle_cost(const Traj& traj, const Obstac
 }
 
 double DynamicWindow::planner::calc_to_goal_cost(const Traj& traj, const Point& goal, const DynamicWindow::Config& config) {
-    double goal_magnitude = std::sqrt(goal[0]*goal[0] + goal[1]*goal[1]);
-    double traj_magnitude = std::sqrt(std::pow(traj.back()[0], 2) + std::pow(traj.back()[1], 2));
-    double dot_product = (goal[0] * traj.back()[0]) + (goal[1] * traj.back()[1]);
-    double error = dot_product / (goal_magnitude * traj_magnitude);
-    double error_angle = std::acos(error);
-    double cost = config.to_goal_cost_gain * error_angle;
+//    double goal_magnitude = std::sqrt(goal[0]*goal[0] + goal[1]*goal[1]);
+//    double traj_magnitude = std::sqrt(std::pow(traj.back()[0], 2) + std::pow(traj.back()[1], 2));
+//    double dot_product = (goal[0] * traj.back()[0]) + (goal[1] * traj.back()[1]);
+//    double error = dot_product / (goal_magnitude * traj_magnitude);
+//    double error_angle = std::acos(error);
+//    double cost =  error_angle;
+    double minCost = std::numeric_limits<double>::max();
+    for(const auto & state : traj) {
+        auto dx = goal[0] - state[0];
+        auto dy = goal[1] - state[1];
+        double cost = sqrt(dx * dx + dy * dy);
+        minCost = std::min(minCost, cost);
+    }
 
-    return cost;
+    return minCost;
 }
 
 Traj DynamicWindow::planner::calc_final_input(const State &x, Control &u, const Window &dw,
@@ -111,9 +118,9 @@ Traj DynamicWindow::planner::calc_final_input(const State &x, Control &u, const 
                 traj.push_back(p);
             }
 
-            double to_goal_cost = calc_to_goal_cost(traj, goal, config);
+            double to_goal_cost = config.to_goal_cost_gain * calc_to_goal_cost(traj, goal, config);
             double speed_cost = config.speed_cost_gain * (config.max_speed - traj.back()[3]);
-            double ob_cost = calc_obstacle_cost(traj, ob, config);
+            double ob_cost = config.to_obstacle_cost_gain * calc_obstacle_cost(traj, ob, config);
             double final_cost =to_goal_cost + speed_cost + ob_cost;
 
             if (min_cost >= final_cost){
@@ -123,7 +130,7 @@ Traj DynamicWindow::planner::calc_final_input(const State &x, Control &u, const 
             }
         }
     }
-//    std::cout <<"[mincost] = " << min_cost << std::endl;
+    std::cout <<"[mincost] = " << min_cost << std::endl;
     u = min_u;
     return best_traj;
 }
