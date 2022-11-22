@@ -19,6 +19,7 @@ State DynamicWindow::planner::motion(State x, Control u, double dt) {
 
 
     x[2] += u[1] * dt;
+    x[2] = fmod(x[2] + M_PI, 2 *M_PI) - M_PI;
 
     x[0] += u[0] * std::cos(x[2]) * dt;
     x[1] += u[0] * std::sin(x[2]) * dt;
