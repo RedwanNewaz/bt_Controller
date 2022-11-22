@@ -43,7 +43,7 @@ add_executable(create3_controller_node src/create3_controller_node.cpp
         include/create3_controller/state_estimator.h
         include/utilities/param_manager2.h
         include/utilities/viz_objects.h
-        )
+        src/dwa_planner_ros.cpp include/create3_controller/dwa_planner_ros.h)
 
 
 target_link_libraries(create3_controller_node
