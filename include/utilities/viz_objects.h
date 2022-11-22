@@ -61,7 +61,7 @@ private:
         marker.color.r = 1.0 ;
         marker.color.g = 0.0;
         marker.color.b = 0.0;
-        RCLCPP_INFO(this->get_logger(), "reading obstacle positions");
+        RCLCPP_INFO(this->get_logger(), "reading obstacles_ positions");
         for(auto& pose: msg->poses)
         {
             geometry_msgs::msg::Point p;

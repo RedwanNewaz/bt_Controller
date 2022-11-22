@@ -20,17 +20,17 @@ public:
         cmd_vel_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel",1);
         timer_ = this->create_wall_timer(
                 30ms, std::bind(&DWA::timer_callback, this));
-        u[0] = u[1] = 0;
+        control_[0] = control_[1] = 0;
         std::function<double(const string&)> f = [&](const string& param)
         {return stateEstimator_->parameters->get_param<double>(param);};
-        config.update_param(f);
+        config_.update_param(f);
         traj_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/short_traj", 10);
         obs_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/obstacles", 10);
 
         obs_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>("/obstacles", 10, [&](const geometry_msgs::msg::PoseArray::SharedPtr msg)
         {return obscacle_callback(msg);});
 
-        stateEstimator_->parameters->get_obstacles(ob);
+        stateEstimator_->parameters->get_obstacles(obstacles_);
 
     }
 private:
@@ -42,10 +42,10 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr rviz_sub_;
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_;
-    DynamicWindow::planner planner;
-    DynamicWindow::Config config;
-    Control u;
-    Obstacle ob;
+    DynamicWindow::planner planner_;
+    DynamicWindow::Config config_;
+    Control control_;
+    Obstacle obstacles_;
     tf2::Transform goal_pose_;
     std::mutex mu_;
     std::once_flag obs_flag_;
@@ -68,21 +68,21 @@ private:
         goal[1] = goal_position.y();
 
 
-        if (remainDist < config.goal_radius)
+        if (remainDist < config_.goal_radius)
         {
             initialized_ = false;
-            u[0] = u[1] = 0;
+            control_[0] = control_[1] = 0;
         }
         else
         {
-            State x({{curr_position.x(), curr_position.y(), current_angle, u[0], u[1]}});
-            Traj ltraj = planner.compute_control(x, u, config, goal, ob);
+            State x({{curr_position.x(), curr_position.y(), current_angle, control_[0], control_[1]}});
+            Traj ltraj = planner_.compute_control(x, control_, config_, goal, obstacles_);
             publish_short_horizon_traj(ltraj);
         }
 
 //        RCLCPP_INFO(this->get_logger(),"[remaining = %lf] v = %lf | w = %lf", remainDist, u[0], u[1]);
-        publish_cmd(u[0], u[1]);
-        stateEstimator_->add_cmd_vel(u[0], u[1]);
+        publish_cmd(control_[0], control_[1]);
+        stateEstimator_->add_cmd_vel(control_[0], control_[1]);
 
     }
 
@@ -114,7 +114,7 @@ private:
         geometry_msgs::msg::PoseArray msg;
         msg.header.stamp = this->get_clock()->now();
 
-        for(auto &item:ob)
+        for(auto &item:obstacles_)
         {
             geometry_msgs::msg::Pose pose;
             pose.position.x = item[0];
@@ -135,10 +135,10 @@ private:
     void obscacle_callback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
     {
         const std::lock_guard<mutex> lk(mu_);
-        ob.clear();
+        obstacles_.clear();
         for(auto& pose: msg->poses)
         {
-            ob.push_back({pose.position.x, pose.position.y});
+            obstacles_.push_back({pose.position.x, pose.position.y});
         }
 
     }

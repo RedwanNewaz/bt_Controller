@@ -50,7 +50,7 @@ Traj DynamicWindow::planner::calc_trajectory(State x, double v, double y, Dynami
 }
 
 double DynamicWindow::planner::calc_obstacle_cost(const Traj& traj, const Obstacle& ob, const DynamicWindow::Config& config) {
-    // calc obstacle cost inf: collistion, 0:free
+    // calc obstacles_ cost inf: collistion, 0:free
     int skip_n = 2;
     double minr = std::numeric_limits<double>::max();
 
