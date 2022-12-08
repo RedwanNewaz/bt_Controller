@@ -16,8 +16,6 @@ DynamicWindow::planner::compute_control(const State &x, Control &u, const Dynami
 
 State DynamicWindow::planner::motion(State x, Control u, double dt) {
 
-
-
     x[2] += u[1] * dt;
     x[2] = fmod(x[2] + M_PI, 2 *M_PI) - M_PI;
 
@@ -55,9 +53,9 @@ double DynamicWindow::planner::calc_obstacle_cost(const Traj& traj, const Obstac
     double minr = std::numeric_limits<double>::max();
 
     for (unsigned int ii=0; ii<traj.size(); ii+=skip_n){
-        for (unsigned int i=0; i< ob.size(); i++){
-            double ox = ob[i][0];
-            double oy = ob[i][1];
+        for (auto i : ob){
+            double ox = i[0];
+            double oy = i[1];
             double dx = traj[ii][0] - ox;
             double dy = traj[ii][1] - oy;
 

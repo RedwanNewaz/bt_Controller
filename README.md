@@ -13,7 +13,7 @@ colcon build --packages-select create3_controller
 
 #### execute node 
 ```bash
-ros2 launch create3_controller create3_controller_launch.yaml 
+ros2 launch create3_controller dwa_launch3.yaml 
 ```
 
 #### gazebo simulation 

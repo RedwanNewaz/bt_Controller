@@ -4,11 +4,15 @@
 
 #include "create3_controller/dwa_planner_ros.h"
 
+#include <rmw/types.h>
+//https://docs.ros2.org/foxy/api/rclpy/api/qos.html
+#include <memory>
+
 dwa_planner_ros::dwa_planner_ros(StatePtr stateEstimator):Node("DWA"), stateEstimator_(stateEstimator) {
     initialized_ = false;
 
     // create subscribers
-    odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/odom", 10, std::bind(
+    odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("/sync/odom", 10, std::bind(
             &dwa_planner_ros::odom_callback, this, std::placeholders::_1)
     );
     obs_sub_ = this->create_subscription<geometry_msgs::msg::PoseArray>("/obstacles", 10, [&](const geometry_msgs::msg::PoseArray::SharedPtr msg)
@@ -18,7 +22,7 @@ dwa_planner_ros::dwa_planner_ros(StatePtr stateEstimator):Node("DWA"), stateEsti
     );
 
     // create publishers
-    cmd_vel_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel",1);
+    cmd_vel_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel", RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT);
     traj_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/short_traj", 10);
     obs_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/obstacles", 10);
     timer_ = this->create_wall_timer(30ms, std::bind(&dwa_planner_ros::timer_callback, this));
@@ -46,6 +50,10 @@ void dwa_planner_ros::timer_callback() {
     auto curr_position = current_pose.getOrigin();
     tf2::Vector3 position_diff = goal_position - curr_position;
     double current_angle = tf2::getYaw(current_pose.getRotation());
+
+    // default heading is 90 with respect to the map which needs to be compensated
+    double offset =  2 * M_PI + M_PI_2;
+    current_angle = fmod(current_angle + offset + M_PI, 2 * M_PI) - M_PI;
 
     // compute terminal condition
     double remainDist = sqrt(pow(position_diff.x(), 2) + pow(position_diff.y(), 2) );

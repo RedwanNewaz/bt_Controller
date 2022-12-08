@@ -100,6 +100,11 @@ public:
         q.setZ(msg->pose.pose.orientation.z);
         q.setW(msg->pose.pose.orientation.w);
 
+//        // default heading is 90 with respect to the map which needs to be compensated
+//        double current_angle = tf2::getYaw(q);
+//        double offset =  -M_PI_2;
+//        current_angle = fmod(current_angle + offset + M_PI, 2 * M_PI) - M_PI;
+//        q.setRPY(0,0,current_angle);
 
         state_[2] = tf2::getYaw(q);
         state_[3] = msg->twist.twist.linear.x;
