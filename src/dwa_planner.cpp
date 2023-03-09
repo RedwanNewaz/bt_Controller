@@ -19,7 +19,7 @@ State DynamicWindow::planner::motion(State x, Control u, double dt) {
 
 
     x[2] += u[1] * dt;
-    x[2] = fmod(x[2] + M_PI, 2 *M_PI) - M_PI;
+    x[2] = fmod(x[2] + M_PI, 2 * M_PI) - M_PI;
 
     x[0] += u[0] * std::cos(x[2]) * dt;
     x[1] += u[0] * std::sin(x[2]) * dt;
@@ -121,6 +121,7 @@ Traj DynamicWindow::planner::calc_final_input(const State &x, Control &u, const 
             double to_goal_cost = config.to_goal_cost_gain * calc_to_goal_cost(traj, goal, config);
             double speed_cost = config.speed_cost_gain * (config.max_speed - traj.back()[3]);
             double ob_cost = config.to_obstacle_cost_gain * calc_obstacle_cost(traj, ob, config);
+
             double final_cost =to_goal_cost + speed_cost + ob_cost;
 
             if (min_cost >= final_cost){

@@ -14,6 +14,11 @@ find_package(irobot_create_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 # uncomment the following section in order to fill in
 
+find_package(rcl_interfaces REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+
+
 include(cmake/CPM.cmake)
 
 CPMAddPackage("gh:jbeder/yaml-cpp#yaml-cpp-0.6.3@0.6.3")
@@ -31,11 +36,17 @@ include_directories(include
         ${irobot_create_msgs_INCLUDE_DIRS}
         ${visualization_msgs_INCLUDE_DIRS}
 #        ${CMAKE_BINARY_DIR}/_deps/behaviortree.cpp-src/include
+	${rcl_interfaces_INCLUDE_DIRS}
+	${tf2_INCLUDE_DIRS}
+	${tf2_ros_INCLUDE_DIRS}
+
+
         )
 
 add_library(COM include/COM.h src/COM.cpp include/utilities/param_manager2.h)
 set_source_files_properties(COM.cpp PROPERTIES COMPILE_FLAGS "-include include/COM.h")
 
+add_subdirectory(state_estimator)
 
 add_executable(create3_controller_node src/create3_controller_node.cpp
         src/dwa_planner.cpp
@@ -45,6 +56,13 @@ add_executable(create3_controller_node src/create3_controller_node.cpp
         include/utilities/viz_objects.h
         src/dwa_planner_ros.cpp include/create3_controller/dwa_planner_ros.h)
 
+ament_target_dependencies(
+	create3_controller_node
+    geometry_msgs
+    rclcpp
+    tf2
+    tf2_ros
+)
 
 target_link_libraries(create3_controller_node
         ${rclcpp_LIBRARIES}

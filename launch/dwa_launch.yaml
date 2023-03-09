@@ -4,7 +4,7 @@ launch:
       exec: "create3_controller_node"
       name: "dwa_planner"
       output: "screen"
-      args: "/home/redwan/colcon_ws/src/create3_controller/config/dwa_param.yaml"
+      args: "/home/airlab/colcon_ws/src/create3_controller/config/dwa_param.yaml"
 
 
   - include:
