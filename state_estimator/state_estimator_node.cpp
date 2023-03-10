@@ -12,6 +12,7 @@
 #include <irobot_create_msgs/msg/ir_intensity_vector.hpp>
 #include <rmw/qos_profiles.h>
 #include <rclcpp/qos.hpp>
+#include <visualization_msgs/msg/marker.hpp>
 
 //https://docs.ros.org/en/foxy/How-To-Guides/Overriding-QoS-Policies-For-Recording-And-Playback.html
 
@@ -21,6 +22,28 @@ enum DATA_TYPE{
     ODOM = 0, 
     APRILTAG,
     CMD_VEL
+};
+
+class StateViz:public rclcpp::Node{
+public:
+    StateViz():Node("stateViz")
+    {
+        create3_state_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("ekf/apriltag", 10, std::bind(
+                &StateViz::state_callback, this, std::placeholders::_1)
+        );
+        create3_state_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("ekf/apriltag/viz", 10);
+    }
+protected:
+    void state_callback(nav_msgs::msg::Odometry::SharedPtr msg)
+    {
+        // convert odom to viz marker
+        visualization_msgs::msg::Marker marker;
+        marker.pose = msg->pose.pose;
+        create3_state_pub_->publish(marker);
+    }
+private:
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr create3_state_pub_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr create3_state_sub_;
 };
 
 struct FusedData{
