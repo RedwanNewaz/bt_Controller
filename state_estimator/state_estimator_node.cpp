@@ -69,25 +69,48 @@ private:
     bool init_;
 };
 
-class RobotSafety:public rclcpp::Node
+class StateEstimatorBase: public rclcpp::Node
 {
 public:
-    RobotSafety(const std::string &nodeName) : Node(nodeName)
+    StateEstimatorBase(const std::string &nodeName) : Node(nodeName)
     {
         intensity_sub_ = this->create_subscription<irobot_create_msgs::msg::IrIntensityVector>("ir_intensity", 10, std::bind(
-                &RobotSafety::intensity_callback, this, std::placeholders::_1)
+                &StateEstimatorBase::intensity_callback, this, std::placeholders::_1)
         );
         ir_values_.resize(7);
         filter_ = std::make_unique<ComplementaryFilter>(0.99);
+        // Call on_timer function every second
+        timer_ = this->create_wall_timer(15ms, [this] { timer_callback(); });
     }
 
+    double safetyProb()
+    {
+        const double mu = 26.0;
+        const double std = 10.0;
+        double x = std::min(maxIrValue(), mu);
+        const double normFactor = 1.0 / std * sqrt(2 * M_PI);
+        double collisionProb = normFactor * exp(-0.5 * (mu - x) / std);
+        return 1.0 - collisionProb;
+    }
+
+protected:
+    virtual void lookupTransform() = 0;
+    virtual void sensorFusion() = 0;
+
+    void timer_callback()
+    {
+        lookupTransform();
+        sensorFusion();
+        double safe = safetyProb();
+        if(safe <= 0.5)
+            RCLCPP_INFO(get_logger(), "[safety ]: prob = %lf", safe);
+    }
     double maxIrValue()
     {
         if(ir_values_.empty())
             return 0;
         return *std::max_element(ir_values_.begin(), ir_values_.end());
     }
-protected:
     void intensity_callback(irobot_create_msgs::msg::IrIntensityVector::SharedPtr msg)
     {
         std::vector<double> mes(7);
@@ -100,15 +123,16 @@ private:
     rclcpp::Subscription<irobot_create_msgs::msg::IrIntensityVector>::SharedPtr intensity_sub_;
     std::vector<double> ir_values_;
     std::unique_ptr<ComplementaryFilter> filter_;
+    rclcpp::TimerBase::SharedPtr timer_;
 
 
 };
 
 
-class JointStateEstimator: public RobotSafety
+class JointStateEstimator: public StateEstimatorBase
 {
 public:
-    JointStateEstimator(const std::string &nodeName) : RobotSafety(nodeName) {
+    JointStateEstimator(const std::string &nodeName) : StateEstimatorBase(nodeName) {
 
         auto qos = rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_sensor_data);
         // collect all the sensor and control information: (i) odom (ii) apriltag tf, and (iii) cmd_vel
@@ -121,8 +145,7 @@ public:
         // prepare for transformation
         tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-        // Call on_timer function every second
-        timer_ = this->create_wall_timer(15ms, [this] { timer_callback(); });
+
         // save them as tf::transform format
         fusedData_ = std::make_unique<FusedData>();
         // ekf odom
@@ -133,7 +156,7 @@ public:
     }
     ~JointStateEstimator()
     {
-        delete initOdom_;
+        delete odomTocam_;
     }
 protected:
     void tf_to_odom(const tf2::Transform& t, nav_msgs::msg::Odometry& odom)
@@ -172,7 +195,7 @@ protected:
         fusedData_->updateStatus[CMD_VEL] = true;
     }
 
-    void timer_callback()
+    void lookupTransform() override
     {
         geometry_msgs::msg::TransformStamped t;
         try {
@@ -206,14 +229,14 @@ protected:
         {
             // TODO should this update need to be done frequently or once?
             std::call_once(flagOdom_, [&](){
-                initOdom_ = new tf2::Transform(fusedData_->odom);
-                // use apriltag position as reference
-                initOdom_->setOrigin(fusedData_->apriltag.getOrigin());
+                //return the inverse of this transform times the other transform.
+                tf2::Transform otc = fusedData_->odom * fusedData_->apriltag.inverse();
+                odomTocam_ = new tf2::Transform(otc);
             });
             // reset the fused data
              fusedData_ = std::make_unique<FusedData>();
         }
-        sensorFusion();
+
     }
 
     void print(const tf2::Transform& t, const char *name)
@@ -223,14 +246,14 @@ protected:
         RCLCPP_INFO(this->get_logger(), "[%s] = state (%lf, %lf, %lf)", name, pos.x(), pos.y(), yaw);
     }
 
-    void sensorFusion()
+    void sensorFusion() override
     {
-        if(initOdom_ == nullptr)
+        if(odomTocam_ == nullptr)
             return;
         // do some computation here
         if(fusedData_->updateStatus[ODOM])
         {
-            auto Odom = fusedData_->odom.inverseTimes(*initOdom_);
+            auto Odom = odomTocam_->inverseTimes(fusedData_->odom);
             print(Odom, "Odom");
             nav_msgs::msg::Odometry msg;
             tf_to_odom(Odom, msg);
@@ -257,13 +280,12 @@ private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_sub_;
     ///@brief variables related to tf listener
-    rclcpp::TimerBase::SharedPtr timer_;
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
     std::unique_ptr<FusedData> fusedData_;
     const std::string fromFrameRel = "camera";
     const std::string toFrameRel = "tag36h11:7";
-    tf2::Transform *initOdom_;
+    tf2::Transform *odomTocam_;
     std::once_flag flagOdom_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr ekf_odom_pub_, ekf_apriltag_pub_;
 };
