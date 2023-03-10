@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg148"
+   width="870.97449"
+   height="493.67917"
+   viewBox="0 0 870.97449 493.67917"
+   sodipodi:docname="math311.svg"
+   inkscape:export-filename="../ae9fec44/math311.png"
+   inkscape:export-xdpi="96"
+   inkscape:export-ydpi="96"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs152">
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect1145"
+       is_visible="true"
+       lpeversion="1"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+    <inkscape:path-effect
+       effect="bspline"
+       id="path-effect373"
+       is_visible="true"
+       lpeversion="1"
+       weight="33.333333"
+       steps="2"
+       helper_size="0"
+       apply_no_weight="true"
+       apply_with_weight="true"
+       only_selected="false" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview150"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="2.0185783"
+     inkscape:cx="295.7527"
+     inkscape:cy="351.9804"
+     inkscape:window-width="2488"
+     inkscape:window-height="1376"
+     inkscape:window-x="1992"
+     inkscape:window-y="27"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <g
+     inkscape:groupmode="layer"
+     id="layer1"
+     inkscape:label="bondary"
+     transform="translate(-266.50532,-147.66439)">
+    <path
+       style="fill:#ffffff;stroke:#000000;stroke-width:9.6378;stroke-dasharray:none"
+       d="m 329.03445,635.19051 -0.92313,-70.58583 -55.50843,-1.68338 -1.26381,-410.43801 h 861.32182 v 484.03342 z"
+       id="path1147" />
+    <rect
+       style="fill:#000000;stroke:#000000;stroke-width:9.36856;stroke-dasharray:none"
+       id="rect1254"
+       width="50.261929"
+       height="68.863686"
+       x="272.50949"
+       y="566.39203" />
+  </g>
+</svg>

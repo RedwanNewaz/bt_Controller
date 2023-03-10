@@ -1,0 +1,6 @@
+image: math311.png
+resolution: 0.008
+origin: [-2.0, 2.0, -1.57]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196
