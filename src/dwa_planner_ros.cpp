@@ -18,9 +18,9 @@ dwa_planner_ros::dwa_planner_ros(StatePtr stateEstimator):Node("DWA"), stateEsti
     );
 
     // create publishers
-    cmd_vel_ = this->create_publisher<geometry_msgs::msg::Twist>("/cmd_vel",1);
-    traj_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/short_traj", 10);
-    obs_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/obstacles", 10);
+    cmd_vel_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel",1);
+    traj_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("short_traj", 10);
+    obs_pub_ = this->create_publisher<geometry_msgs::msg::PoseArray>("obstacles", 10);
     timer_ = this->create_wall_timer(30ms, std::bind(&dwa_planner_ros::timer_callback, this));
 
     // initialize internal parameters

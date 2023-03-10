@@ -38,6 +38,10 @@ protected:
     {
         // convert odom to viz marker
         visualization_msgs::msg::Marker marker;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        marker.header.stamp = get_clock()->now();
+        marker.id = 0;
+        marker.color.r = marker.color.a = 1;
         marker.pose = msg->pose.pose;
         create3_state_pub_->publish(marker);
     }
