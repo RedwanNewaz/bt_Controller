@@ -26,7 +26,7 @@ enum DATA_TYPE{
 
 class StateViz:public rclcpp::Node{
 public:
-    StateViz():Node("stateViz")
+    StateViz(const std::string& nodeName):Node(nodeName)
     {
         create3_state_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("ekf/apriltag", 10, std::bind(
                 &StateViz::state_callback, this, std::placeholders::_1)
@@ -40,8 +40,11 @@ protected:
         visualization_msgs::msg::Marker marker;
         marker.action = visualization_msgs::msg::Marker::ADD;
         marker.header.stamp = get_clock()->now();
+        marker.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+        marker.mesh_resource = "package://irobot_create_description/meshes/body_visual.dae";
         marker.id = 0;
-        marker.color.r = marker.color.a = 1;
+        marker.ns = "robot";
+        marker.color.r = marker.color.a = 0.85;
         marker.pose = msg->pose.pose;
         create3_state_pub_->publish(marker);
     }
@@ -322,9 +325,11 @@ int main(int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
     auto stateEstimator = std::make_shared<JointStateEstimator> ("stateEstimator");
+    auto stateViz = std::make_shared<StateViz>("stateViz");
 
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(stateEstimator);
+    executor.add_node(stateViz);
     executor.spin();
     rclcpp::shutdown();
     return 0;
