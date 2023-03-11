@@ -15,8 +15,10 @@
 #include <visualization_msgs/msg/marker.hpp>
 
 //https://docs.ros.org/en/foxy/How-To-Guides/Overriding-QoS-Policies-For-Recording-And-Playback.html
+//ros2 run tf2_ros static_transform_publisher 0 0 0  0 0 0 map odom
 
 using namespace  std::chrono_literals;
+const auto qos = rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_sensor_data);
 
 enum DATA_TYPE{
     ODOM = 0, 
@@ -25,32 +27,62 @@ enum DATA_TYPE{
 };
 
 class StateViz:public rclcpp::Node{
+    enum COLOR{
+        RED,
+        GREEN,
+        DEFAULT
+    };
+    std::unordered_map<int, std::vector<geometry_msgs::msg::Point>> pubData_;
 public:
     StateViz(const std::string& nodeName):Node(nodeName)
     {
-        create3_state_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("ekf/apriltag", 10, std::bind(
-                &StateViz::state_callback, this, std::placeholders::_1)
-        );
+        create3_state_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("ekf/apriltag", 10, [this](nav_msgs::msg::Odometry::SharedPtr msg) {
+            state_callback(msg, RED);});
+
+        create3_state_sub2_ = this->create_subscription<nav_msgs::msg::Odometry>("ekf/odom", 10, [this](nav_msgs::msg::Odometry::SharedPtr msg) {
+            state_callback(msg, DEFAULT);});
+
         create3_state_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("ekf/apriltag/viz", 10);
     }
 protected:
-    void state_callback(nav_msgs::msg::Odometry::SharedPtr msg)
+    void state_callback(nav_msgs::msg::Odometry::SharedPtr msg, const COLOR& color)
     {
         // convert odom to viz marker
-        visualization_msgs::msg::Marker marker;
-        marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.header.stamp = get_clock()->now();
+        visualization_msgs::msg::Marker marker, trajMarker;
+        marker.action = trajMarker.action = visualization_msgs::msg::Marker::ADD;
+        marker.header.stamp = trajMarker.header.stamp = get_clock()->now();
+        marker.header.frame_id = trajMarker.header.frame_id = "map";
+//        marker.type = visualization_msgs::msg::Marker::SPHERE;
         marker.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
         marker.mesh_resource = "package://irobot_create_description/meshes/body_visual.dae";
-        marker.id = 0;
+        marker.id = trajMarker.id = static_cast<int>(color);
         marker.ns = "robot";
-        marker.color.r = marker.color.a = 0.85;
+        marker.scale.x = marker.scale.y = marker.scale.z = 1.0;
+        switch (color) {
+            case RED: marker.color.r = 1; break;
+            case GREEN: marker.color.g = 1; break;
+            default:
+                marker.color.r = marker.color.g  = marker.color.b = 0.66;
+
+        }
+
+        marker.color.a = 0.85;
         marker.pose = msg->pose.pose;
         create3_state_pub_->publish(marker);
+        // show traj
+        trajMarker.color = marker.color;
+        pubData_[color].push_back(marker.pose.position);
+        std::copy(pubData_[color].begin(), pubData_[color].end(), std::back_inserter(trajMarker.points));
+        trajMarker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+        trajMarker.ns = "traj";
+        trajMarker.scale.x = trajMarker.scale.y = trajMarker.scale.z = 0.1;
+        create3_state_pub_->publish(trajMarker);
+
     }
 private:
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr create3_state_pub_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr create3_state_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr create3_state_sub_, create3_state_sub2_;
+
 };
 
 struct FusedData{
@@ -62,6 +94,7 @@ struct FusedData{
     tf2::Transform apriltag;
     geometry_msgs::msg::Twist cmd;
     std::array<bool, 3> updateStatus;
+
 };
 
 
@@ -104,11 +137,11 @@ class StateEstimatorBase: public rclcpp::Node
 public:
     StateEstimatorBase(const std::string &nodeName) : Node(nodeName)
     {
-        intensity_sub_ = this->create_subscription<irobot_create_msgs::msg::IrIntensityVector>("ir_intensity", 10, std::bind(
+        intensity_sub_ = this->create_subscription<irobot_create_msgs::msg::IrIntensityVector>("ir_intensity", qos, std::bind(
                 &StateEstimatorBase::intensity_callback, this, std::placeholders::_1)
         );
         ir_values_.resize(7);
-        filter_ = std::make_unique<ComplementaryFilter>(0.99);
+        filter_ = std::make_unique<ComplementaryFilter>(0.7);
         // Call on_timer function every second
         timer_ = this->create_wall_timer(15ms, [this] { timer_callback(); });
     }
@@ -164,12 +197,11 @@ class JointStateEstimator: public StateEstimatorBase
 public:
     JointStateEstimator(const std::string &nodeName) : StateEstimatorBase(nodeName) {
 
-        auto qos = rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_sensor_data);
         // collect all the sensor and control information: (i) odom (ii) apriltag tf, and (iii) cmd_vel
         odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("odom", qos, std::bind(
                 &JointStateEstimator::odom_callback, this, std::placeholders::_1)
         );
-        cmd_sub_ = this->create_subscription<geometry_msgs::msg::Twist>("cmd_vel", 10, std::bind(
+        cmd_sub_ = this->create_subscription<geometry_msgs::msg::Twist>("cmd_vel", 10   , std::bind(
                 &JointStateEstimator::cmd_callback, this, std::placeholders::_1)
         );
         // prepare for transformation
@@ -186,7 +218,7 @@ public:
     }
     ~JointStateEstimator()
     {
-        delete odomTocam_;
+        delete odomInit_;
     }
 protected:
     void tf_to_odom(const tf2::Transform& t, nav_msgs::msg::Odometry& odom)
@@ -227,13 +259,15 @@ protected:
 
     void lookupTransform() override
     {
+
+
         geometry_msgs::msg::TransformStamped t;
         try {
             t = tf_buffer_->lookupTransform(
                     fromFrameRel, toFrameRel,
                     tf2::TimePointZero);
-            fusedData_->apriltag.setOrigin(tf2::Vector3(t.transform.translation.x,
-                                                        t.transform.translation.y,
+            fusedData_->apriltag.setOrigin(tf2::Vector3(-t.transform.translation.y,
+                                                        -t.transform.translation.x,
                                                         t.transform.translation.z
             ));
             fusedData_->apriltag.setRotation(
@@ -243,6 +277,8 @@ protected:
                             t.transform.rotation.z,
                             t.transform.rotation.w)
             );
+
+
 
             fusedData_->updateStatus[APRILTAG] = true;
 //            RCLCPP_INFO(this->get_logger(), "Found transform %s to %s",  toFrameRel.c_str(), fromFrameRel.c_str());
@@ -258,13 +294,14 @@ protected:
         if(!std::count(fusedData_->updateStatus.begin(), fusedData_->updateStatus.end(), false))
         {
             // TODO should this update need to be done frequently or once?
+
             std::call_once(flagOdom_, [&](){
-                //return the inverse of this transform times the other transform.
-                tf2::Transform otc = fusedData_->odom * fusedData_->apriltag.inverse();
-                odomTocam_ = new tf2::Transform(otc);
+                odomInit_ = new tf2::Transform(fusedData_->odom);
+                apriltagInit_ = new tf2::Transform(fusedData_->apriltag);
             });
+//            odomInit_->setRotation(fusedData_->odom.getRotation().inverse());
             // reset the fused data
-             fusedData_ = std::make_unique<FusedData>();
+//             fusedData_ = std::make_unique<FusedData>();
         }
 
     }
@@ -278,28 +315,40 @@ protected:
 
     void sensorFusion() override
     {
-        if(odomTocam_ == nullptr)
+        if(odomInit_ == nullptr)
             return;
+
+
+        if(fusedData_->updateStatus[APRILTAG])
+        {
+            auto relPosition = fusedData_->apriltag.getOrigin() - apriltagInit_->getOrigin();
+            tf2::Transform Apriltag;
+            Apriltag.setOrigin(relPosition);
+            Apriltag.setRotation(fusedData_->odom.getRotation());
+            // check odom initialized or not
+            // use odom rotation for apriltag
+//            Apriltag.setRotation(fusedData_->odom.getRotation());
+            print(Apriltag, "Apriltag");
+            nav_msgs::msg::Odometry msg;
+            tf_to_odom(Apriltag, msg);
+            ekf_apriltag_pub_->publish(msg);
+        }
+
         // do some computation here
         if(fusedData_->updateStatus[ODOM])
         {
-            auto Odom = odomTocam_->inverseTimes(fusedData_->odom);
+            tf2::Transform Odom = fusedData_->odom;
+            Odom.setOrigin(Odom.getOrigin() - odomInit_->getOrigin());
             print(Odom, "Odom");
             nav_msgs::msg::Odometry msg;
             tf_to_odom(Odom, msg);
             ekf_odom_pub_->publish(msg);
         }
 
-        if(fusedData_->updateStatus[APRILTAG])
+        // reset
+        if(!std::count(fusedData_->updateStatus.begin(), fusedData_->updateStatus.end(), false))
         {
-            auto Apriltag = fusedData_->apriltag;
-            // check odom initialized or not
-            // use odom rotation for apriltag
-            Apriltag.setRotation(fusedData_->odom.getRotation());
-            print(Apriltag, "Apriltag");
-            nav_msgs::msg::Odometry msg;
-            tf_to_odom(Apriltag, msg);
-            ekf_apriltag_pub_->publish(msg);
+            fusedData_ = std::make_unique<FusedData>();
         }
 
     }
@@ -315,7 +364,7 @@ private:
     std::unique_ptr<FusedData> fusedData_;
     const std::string fromFrameRel = "camera";
     const std::string toFrameRel = "tag36h11:7";
-    tf2::Transform *odomTocam_;
+    tf2::Transform *odomInit_, *apriltagInit_;
     std::once_flag flagOdom_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr ekf_odom_pub_, ekf_apriltag_pub_;
 };
