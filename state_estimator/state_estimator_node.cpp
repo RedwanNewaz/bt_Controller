@@ -46,19 +46,20 @@ public:
             state_callback(msg, GREEN);});
 
         create3_state_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("ekf/apriltag/viz", 10);
+        timer_ = this->create_wall_timer(1s, [this] { publish_traj(); });
     }
 protected:
     void state_callback(nav_msgs::msg::Odometry::SharedPtr msg, const COLOR& color)
     {
         // convert odom to viz marker
-        visualization_msgs::msg::Marker marker, trajMarker;
-        marker.action = trajMarker.action = visualization_msgs::msg::Marker::ADD;
-        marker.header.stamp = trajMarker.header.stamp = get_clock()->now();
-        marker.header.frame_id = trajMarker.header.frame_id = "map";
-//        marker.type = visualization_msgs::msg::Marker::SPHERE;
+        visualization_msgs::msg::Marker marker;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        marker.header.stamp  = get_clock()->now();
+        marker.header.frame_id  = "map";
+
         marker.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
         marker.mesh_resource = "package://irobot_create_description/meshes/body_visual.dae";
-        marker.id = trajMarker.id = static_cast<int>(color);
+        marker.id = static_cast<int>(color);
         marker.ns = "robot";
         marker.scale.x = marker.scale.y = marker.scale.z = 1.0;
         switch (color) {
@@ -68,24 +69,39 @@ protected:
                 marker.color.r = marker.color.g  = marker.color.b = 0.66;
 
         }
-        marker.id += 1;
         marker.color.a = 0.85;
         marker.pose = msg->pose.pose;
         create3_state_pub_->publish(marker);
         // show traj
-//        trajMarker.color = marker.color;
-//        pubData_[color].push_back(marker.pose.position);
-//        std::copy(pubData_[color].begin(), pubData_[color].end(), std::back_inserter(trajMarker.points));
-//        trajMarker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-//        trajMarker.ns = "traj";
-//        trajMarker.scale.x = trajMarker.scale.y = trajMarker.scale.z = 0.1;
-//        create3_state_pub_->publish(trajMarker);
+        pubData_[color].push_back(marker.pose.position);
+
+    }
+
+    void publish_traj()
+    {
+        auto color = DEFAULT;
+        if(pubData_[color].empty())
+            return;
+
+        visualization_msgs::msg::Marker trajMarker;
+        std::copy(pubData_[color].begin(), pubData_[color].end(), std::back_inserter(trajMarker.points));
+        trajMarker.id = 202;
+        trajMarker.action = visualization_msgs::msg::Marker::ADD;
+        trajMarker.header.stamp = get_clock()->now();
+        trajMarker.header.frame_id = "map";
+
+        trajMarker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+        trajMarker.ns = "traj";
+        trajMarker.color.r = 1;
+        trajMarker.color.a = 0.7;
+        trajMarker.scale.x = trajMarker.scale.y = trajMarker.scale.z = 0.1;
+        create3_state_pub_->publish(trajMarker);
 
     }
 private:
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr create3_state_pub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr create3_state_sub_, create3_state_sub2_, create3_state_sub3_;
-
+    rclcpp::TimerBase::SharedPtr timer_;
 };
 
 struct FusedData{
@@ -160,9 +176,10 @@ public:
                 &StateEstimatorBase::intensity_callback, this, std::placeholders::_1)
         );
         ir_values_.resize(7);
-        filter_ = std::make_unique<ComplementaryFilter>(0.7);
         // Call on_timer function every second
+        filter_ = std::make_unique<ComplementaryFilter>(0.99);
         timer_ = this->create_wall_timer(15ms, [this] { timer_callback(); });
+
     }
 
     double safetyProb()
@@ -233,14 +250,13 @@ public:
         ekf_odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("ekf/odom", 10);
         ekf_apriltag_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("ekf/apriltag", 10);
         RCLCPP_INFO(this->get_logger(), "Joint State Estimator Initialized!!");
-
-        filter_ = std::make_unique<ComplementaryFilter>(0.99);
         ekf_ = std::make_unique<EKF>(1.0 / 100); // 20 Hz
 
     }
     ~JointStateEstimator()
     {
         delete odomInit_;
+        delete apriltagInit_;
     }
 protected:
     void tf_to_odom(const tf2::Transform& t, nav_msgs::msg::Odometry& odom)
@@ -260,12 +276,6 @@ protected:
         odom.pose.pose.orientation.w = ori.w();
 
         odom.twist.twist = fusedData_->cmd;
-
-
-
-
-
-
     }
 
     void odom_callback(nav_msgs::msg::Odometry::SharedPtr msg)
@@ -336,69 +346,23 @@ protected:
 
     }
 
-    void print(const tf2::Transform& t, const char *name)
-    {
-        auto pos = t.getOrigin();
-        auto yaw = t.getRotation().getAngle();
-//        RCLCPP_INFO(this->get_logger(), "[%s] = state (%lf, %lf, %lf)", name, pos.x(), pos.y(), yaw);
-    }
-
-    void velocityUpdate(const std::string& name, const geometry_msgs::msg::Twist& cmd,  tf2::Transform& t)
-    {
-        auto relPosition = t.getOrigin();
-        double dt = 1.0; // because this function update every iteration
-        auto v = cmd.linear;
-        auto w = fusedData_->cmd.angular.z;
-        auto newAngle = fmod(t.getRotation().getAngle() + w * dt + M_PI_2, 2 * M_PI);
-
-        auto vx = v.x * cos(newAngle) - v.y * sin(newAngle);
-        auto vy = v.x * sin(newAngle) + v.y * cos(newAngle);
-
-
-
-        auto velocity = tf2::Vector3(dt * vx, dt * vy, dt * v.z);
-//        RCLCPP_INFO(this->get_logger(), "[%s] = state (%lf, %lf, %lf)", name.c_str(), v.x, v.y, newAngle);
-        relPosition = relPosition + velocity;
-        tf2::Quaternion relAngle;
-        relAngle.setRPY(0, 0, newAngle);
-        tf2::Transform newTransform;
-        newTransform.setOrigin(relPosition);
-        newTransform.setRotation(relAngle);
-        t.setOrigin(relPosition);
-    }
 
     void sensorFusion() override
     {
         if(odomInit_ == nullptr)
             return;
+
+
+        auto q = fusedData_->odom.getRotation();
+        fusedData_->apriltag.setRotation(q);
         tf2::Transform OdomFilter;
-
-        // consider odometry information
-//        velocityUpdate("odom", fusedData_->odomTwsit, fusedData_->apriltag);
-//        filter_->update(fusedData_->apriltag, OdomFilter);
-//        // consider control input
-//        velocityUpdate("cmd", fusedData_->cmd, fusedData_->apriltag);
-//        filter_->update(fusedData_->apriltag, OdomFilter);
-
         ekf_->update(fusedData_->apriltag, fusedData_->odomTwsit, OdomFilter);
         // consider control input
         ekf_->update(fusedData_->apriltag, fusedData_->cmd, OdomFilter);
+        fusedData_->apriltag = OdomFilter;
 
 
-
-//        auto relPosition = fusedData_->apriltag.getOrigin() - apriltagInit_->getOrigin();
-//        tf2::Transform Apriltag;
-//        Apriltag.setOrigin(relPosition);
-//        Apriltag.setRotation(fusedData_->odom.getRotation());
-//        // check odom initialized or not
-//        print(Apriltag, "Apriltag");
-//        nav_msgs::msg::Odometry msg;
-//        tf_to_odom(Apriltag, msg);
-//        ekf_apriltag_pub_->publish(msg);
-
-
-        // do some computation here
-
+        // convert to odom message
         nav_msgs::msg::Odometry msg1;
         tf_to_odom(OdomFilter, msg1);
         ekf_odom_pub_->publish(msg1);
@@ -425,7 +389,7 @@ private:
     tf2::Transform *odomInit_, *apriltagInit_;
     std::once_flag flagOdom_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr ekf_odom_pub_, ekf_apriltag_pub_;
-    std::unique_ptr<ComplementaryFilter> filter_;
+
 
     std::unique_ptr<EKF> ekf_;
 };
