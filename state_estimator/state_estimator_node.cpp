@@ -361,6 +361,13 @@ protected:
         ekf_->update(fusedData_->apriltag, fusedData_->cmd, OdomFilter);
         fusedData_->apriltag = OdomFilter;
 
+        auto newAngle = OdomFilter.getRotation();
+        double finalAngle = fmod(newAngle.getAngle() + 3 * M_PI_2, 2 * M_PI);
+//        finalAngle = std::min(2 * M_PI - finalAngle, finalAngle);
+        newAngle.setRPY(0, 0, finalAngle);
+        OdomFilter.setRotation(newAngle);
+
+
 
         // convert to odom message
         nav_msgs::msg::Odometry msg1;
