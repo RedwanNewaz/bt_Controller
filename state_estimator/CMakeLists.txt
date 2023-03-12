@@ -1,6 +1,6 @@
-
-add_executable(create3_state_estimator state_estimator_node.cpp)
-
+find_package(Eigen3 REQUIRED)
+add_executable(create3_state_estimator state_estimator_node.cpp EKF.cpp EKF.h EKF.h)
+include_directories(${Eigen_INCLUDE_DIRS})
 ament_target_dependencies(
         create3_state_estimator
         geometry_msgs
@@ -17,5 +17,10 @@ target_link_libraries(create3_state_estimator
         ${visualization_msgs_LIBRARIES}
         yaml-cpp
         COM
+        Eigen3::Eigen
 
         )
+
+
+install(DIRECTORY ../launch
+        DESTINATION share/${PROJECT_NAME})

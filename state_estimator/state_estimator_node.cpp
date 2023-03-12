@@ -13,7 +13,7 @@
 #include <rmw/qos_profiles.h>
 #include <rclcpp/qos.hpp>
 #include <visualization_msgs/msg/marker.hpp>
-
+#include "EKF.h"
 //https://docs.ros.org/en/foxy/How-To-Guides/Overriding-QoS-Policies-For-Recording-And-Playback.html
 //ros2 run tf2_ros static_transform_publisher 0 0 0  0 0 0 map odom
 
@@ -42,6 +42,9 @@ public:
         create3_state_sub2_ = this->create_subscription<nav_msgs::msg::Odometry>("ekf/odom", 10, [this](nav_msgs::msg::Odometry::SharedPtr msg) {
             state_callback(msg, DEFAULT);});
 
+        create3_state_sub3_ = this->create_subscription<nav_msgs::msg::Odometry>("odometry/filtered", 10, [this](nav_msgs::msg::Odometry::SharedPtr msg) {
+            state_callback(msg, GREEN);});
+
         create3_state_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("ekf/apriltag/viz", 10);
     }
 protected:
@@ -65,23 +68,23 @@ protected:
                 marker.color.r = marker.color.g  = marker.color.b = 0.66;
 
         }
-
+        marker.id += 1;
         marker.color.a = 0.85;
         marker.pose = msg->pose.pose;
         create3_state_pub_->publish(marker);
         // show traj
-        trajMarker.color = marker.color;
-        pubData_[color].push_back(marker.pose.position);
-        std::copy(pubData_[color].begin(), pubData_[color].end(), std::back_inserter(trajMarker.points));
-        trajMarker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
-        trajMarker.ns = "traj";
-        trajMarker.scale.x = trajMarker.scale.y = trajMarker.scale.z = 0.1;
-        create3_state_pub_->publish(trajMarker);
+//        trajMarker.color = marker.color;
+//        pubData_[color].push_back(marker.pose.position);
+//        std::copy(pubData_[color].begin(), pubData_[color].end(), std::back_inserter(trajMarker.points));
+//        trajMarker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+//        trajMarker.ns = "traj";
+//        trajMarker.scale.x = trajMarker.scale.y = trajMarker.scale.z = 0.1;
+//        create3_state_pub_->publish(trajMarker);
 
     }
 private:
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr create3_state_pub_;
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr create3_state_sub_, create3_state_sub2_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr create3_state_sub_, create3_state_sub2_, create3_state_sub3_;
 
 };
 
@@ -92,7 +95,7 @@ struct FusedData{
     }
     tf2::Transform odom;
     tf2::Transform apriltag;
-    geometry_msgs::msg::Twist cmd;
+    geometry_msgs::msg::Twist cmd, odomTwsit;
     std::array<bool, 3> updateStatus;
 
 };
@@ -126,6 +129,22 @@ public:
         else
             std::copy(X_.begin(), X_.end(),result.begin());
     }
+
+    void update(const tf2::Transform& obs, tf2::Transform& res)
+    {
+        // convert tf to vector
+        auto origin = obs.getOrigin();
+        auto theta = obs.getRotation().getAngle();
+        std::vector<double> input{origin.x(), origin.y(), origin.z(), theta};
+        std::vector<double> result;
+        update(input, result);
+        res.setOrigin(tf2::Vector3(result[0], result[1], result[2]));
+        tf2::Quaternion q;
+        q.setRPY(0, 0, result[3]);
+        res.setRotation(q);
+
+
+    }
 private:
     double m_alpha;
     std::vector<double>X_;
@@ -148,9 +167,9 @@ public:
 
     double safetyProb()
     {
-        const double mu = 26.0;
-        const double std = 10.0;
-        double x = std::min(maxIrValue(), mu);
+        const double mu = 10.0;
+        const double std = 2.0;
+        double x = std::min(maxIrValue(), mu ) - 1e-6;
         const double normFactor = 1.0 / std * sqrt(2 * M_PI);
         double collisionProb = normFactor * exp(-0.5 * (mu - x) / std);
         return 1.0 - collisionProb;
@@ -201,7 +220,7 @@ public:
         odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>("odom", qos, std::bind(
                 &JointStateEstimator::odom_callback, this, std::placeholders::_1)
         );
-        cmd_sub_ = this->create_subscription<geometry_msgs::msg::Twist>("cmd_vel", 10   , std::bind(
+        cmd_sub_ = this->create_subscription<geometry_msgs::msg::Twist>("cmd_vel", qos   , std::bind(
                 &JointStateEstimator::cmd_callback, this, std::placeholders::_1)
         );
         // prepare for transformation
@@ -215,6 +234,9 @@ public:
         ekf_apriltag_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("ekf/apriltag", 10);
         RCLCPP_INFO(this->get_logger(), "Joint State Estimator Initialized!!");
 
+        filter_ = std::make_unique<ComplementaryFilter>(0.99);
+        ekf_ = std::make_unique<EKF>(1.0 / 100); // 20 Hz
+
     }
     ~JointStateEstimator()
     {
@@ -223,9 +245,10 @@ public:
 protected:
     void tf_to_odom(const tf2::Transform& t, nav_msgs::msg::Odometry& odom)
     {
-        odom.header.frame_id = "map";
+        odom.header.frame_id = "odom";
         auto pos = t.getOrigin();
         auto ori = t.getRotation();
+        odom.header.stamp = get_clock()->now();
 
         odom.pose.pose.position.x = pos.x();
         odom.pose.pose.position.y = pos.y();
@@ -235,6 +258,14 @@ protected:
         odom.pose.pose.orientation.y = ori.y();
         odom.pose.pose.orientation.z = ori.z();
         odom.pose.pose.orientation.w = ori.w();
+
+        odom.twist.twist = fusedData_->cmd;
+
+
+
+
+
+
     }
 
     void odom_callback(nav_msgs::msg::Odometry::SharedPtr msg)
@@ -248,6 +279,7 @@ protected:
                                                     msg->pose.pose.orientation.z,
                                                     msg->pose.pose.orientation.w
                                                     ));
+        fusedData_->odomTwsit = msg->twist.twist;
         fusedData_->updateStatus[ODOM] = true;
     }
 
@@ -299,9 +331,7 @@ protected:
                 odomInit_ = new tf2::Transform(fusedData_->odom);
                 apriltagInit_ = new tf2::Transform(fusedData_->apriltag);
             });
-//            odomInit_->setRotation(fusedData_->odom.getRotation().inverse());
-            // reset the fused data
-//             fusedData_ = std::make_unique<FusedData>();
+
         }
 
     }
@@ -310,40 +340,68 @@ protected:
     {
         auto pos = t.getOrigin();
         auto yaw = t.getRotation().getAngle();
-        RCLCPP_INFO(this->get_logger(), "[%s] = state (%lf, %lf, %lf)", name, pos.x(), pos.y(), yaw);
+//        RCLCPP_INFO(this->get_logger(), "[%s] = state (%lf, %lf, %lf)", name, pos.x(), pos.y(), yaw);
+    }
+
+    void velocityUpdate(const std::string& name, const geometry_msgs::msg::Twist& cmd,  tf2::Transform& t)
+    {
+        auto relPosition = t.getOrigin();
+        double dt = 1.0; // because this function update every iteration
+        auto v = cmd.linear;
+        auto w = fusedData_->cmd.angular.z;
+        auto newAngle = fmod(t.getRotation().getAngle() + w * dt + M_PI_2, 2 * M_PI);
+
+        auto vx = v.x * cos(newAngle) - v.y * sin(newAngle);
+        auto vy = v.x * sin(newAngle) + v.y * cos(newAngle);
+
+
+
+        auto velocity = tf2::Vector3(dt * vx, dt * vy, dt * v.z);
+//        RCLCPP_INFO(this->get_logger(), "[%s] = state (%lf, %lf, %lf)", name.c_str(), v.x, v.y, newAngle);
+        relPosition = relPosition + velocity;
+        tf2::Quaternion relAngle;
+        relAngle.setRPY(0, 0, newAngle);
+        tf2::Transform newTransform;
+        newTransform.setOrigin(relPosition);
+        newTransform.setRotation(relAngle);
+        t.setOrigin(relPosition);
     }
 
     void sensorFusion() override
     {
         if(odomInit_ == nullptr)
             return;
+        tf2::Transform OdomFilter;
+
+        // consider odometry information
+//        velocityUpdate("odom", fusedData_->odomTwsit, fusedData_->apriltag);
+//        filter_->update(fusedData_->apriltag, OdomFilter);
+//        // consider control input
+//        velocityUpdate("cmd", fusedData_->cmd, fusedData_->apriltag);
+//        filter_->update(fusedData_->apriltag, OdomFilter);
+
+        ekf_->update(fusedData_->apriltag, fusedData_->odomTwsit, OdomFilter);
+        // consider control input
+        ekf_->update(fusedData_->apriltag, fusedData_->cmd, OdomFilter);
 
 
-        if(fusedData_->updateStatus[APRILTAG])
-        {
-            auto relPosition = fusedData_->apriltag.getOrigin() - apriltagInit_->getOrigin();
-            tf2::Transform Apriltag;
-            Apriltag.setOrigin(relPosition);
-            Apriltag.setRotation(fusedData_->odom.getRotation());
-            // check odom initialized or not
-            // use odom rotation for apriltag
-//            Apriltag.setRotation(fusedData_->odom.getRotation());
-            print(Apriltag, "Apriltag");
-            nav_msgs::msg::Odometry msg;
-            tf_to_odom(Apriltag, msg);
-            ekf_apriltag_pub_->publish(msg);
-        }
+
+//        auto relPosition = fusedData_->apriltag.getOrigin() - apriltagInit_->getOrigin();
+//        tf2::Transform Apriltag;
+//        Apriltag.setOrigin(relPosition);
+//        Apriltag.setRotation(fusedData_->odom.getRotation());
+//        // check odom initialized or not
+//        print(Apriltag, "Apriltag");
+//        nav_msgs::msg::Odometry msg;
+//        tf_to_odom(Apriltag, msg);
+//        ekf_apriltag_pub_->publish(msg);
+
 
         // do some computation here
-        if(fusedData_->updateStatus[ODOM])
-        {
-            tf2::Transform Odom = fusedData_->odom;
-            Odom.setOrigin(Odom.getOrigin() - odomInit_->getOrigin());
-            print(Odom, "Odom");
-            nav_msgs::msg::Odometry msg;
-            tf_to_odom(Odom, msg);
-            ekf_odom_pub_->publish(msg);
-        }
+
+        nav_msgs::msg::Odometry msg1;
+        tf_to_odom(OdomFilter, msg1);
+        ekf_odom_pub_->publish(msg1);
 
         // reset
         if(!std::count(fusedData_->updateStatus.begin(), fusedData_->updateStatus.end(), false))
@@ -367,6 +425,9 @@ private:
     tf2::Transform *odomInit_, *apriltagInit_;
     std::once_flag flagOdom_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr ekf_odom_pub_, ekf_apriltag_pub_;
+    std::unique_ptr<ComplementaryFilter> filter_;
+
+    std::unique_ptr<EKF> ekf_;
 };
 
 
