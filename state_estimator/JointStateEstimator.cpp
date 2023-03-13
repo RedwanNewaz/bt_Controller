@@ -115,15 +115,13 @@ void JointStateEstimator::sensorFusion()
         return;
 
 
-    auto q = fusedData_->odom.getRotation();
-    fusedData_->apriltag.setRotation(q);
-    tf2::Transform OdomFilter;
+//    auto q = fusedData_->odom.getRotation();
+//    fusedData_->apriltag.setRotation(q);
+    tf2::Transform OdomFilter(fusedData_->apriltag);
 //    ekf_->update(fusedData_->apriltag, fusedData_->odomTwsit, OdomFilter);
 //    fusedData_->apriltag.setOrigin(OdomFilter.getOrigin());
     // consider control input
-    ekf_->update(fusedData_->apriltag, fusedData_->cmd, OdomFilter);
-
-
+//    ekf_->update(fusedData_->apriltag, fusedData_->cmd, OdomFilter);
 
 //    auto newAngle = OdomFilter.getRotation();
 //    double finalAngle = fmod(newAngle.getAngle() + 3 * M_PI_2, 2 * M_PI);

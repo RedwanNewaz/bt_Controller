@@ -27,12 +27,12 @@ void StateViz::state_callback(nav_msgs::msg::Odometry::SharedPtr msg, const COLO
     marker.action = visualization_msgs::msg::Marker::ADD;
     marker.header.stamp  = get_clock()->now();
     marker.header.frame_id  = "map";
-    marker.type = visualization_msgs::msg::Marker::ARROW;
-//    marker.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
-//    marker.mesh_resource = "package://irobot_create_description/meshes/body_visual.dae";
+//    marker.type = visualization_msgs::msg::Marker::ARROW;
+    marker.type = visualization_msgs::msg::Marker::MESH_RESOURCE;
+    marker.mesh_resource = "package://irobot_create_description/meshes/body_visual.dae";
     marker.id = static_cast<int>(color);
     marker.ns = "robot";
-    marker.scale.x = marker.scale.y = marker.scale.z = 0.20;
+    marker.scale.x = marker.scale.y = marker.scale.z = 1.0; // arrow scale 0.2 roomba scale 1.0
     switch (color) {
         case RED: marker.color.r = 1; break;
         case GREEN: marker.color.g = 1; break;
