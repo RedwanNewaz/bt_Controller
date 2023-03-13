@@ -36,11 +36,11 @@ ros2 pkg create --build-type ament_cmake --node-name create3_path_follower creat
 ```
 
 ## TODO List 
-1. create sensor fusion-based state estimator 
-   1. generate raw traj from odom 
+1. ~~create sensor fusion-based state estimator~~ 
+   1. ~~generate raw traj from odom~~ 
    2. ~~generate raw traj from apriltag~~
-   3. generate raw traj from cmd_vel 
-   4. analyze trajectory from multiple sensors using either 
+   3. ~~generate raw traj from cmd_vel~~ 
+   4. ~~analyze trajectory from multiple sensors using either~~ 
       5. EKF 
       6. Lowpass Filter 
    
