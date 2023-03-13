@@ -42,6 +42,7 @@ void StateViz::state_callback(nav_msgs::msg::Odometry::SharedPtr msg, const COLO
     }
     marker.color.a = 0.85;
     marker.pose = msg->pose.pose;
+
     create3_state_pub_->publish(marker);
     // show traj
     pubData_[color].push_back(marker.pose.position);

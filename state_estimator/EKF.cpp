@@ -71,12 +71,12 @@ void EKF::ekf_estimation(const Eigen::Vector3f& z, const Eigen::Vector2f& u)
 
 //    // borrowed from https://github.com/JunshengFu/tracking-with-Extended-Kalman-Filter/blob/master/src/kalman_filter.cpp
 //    // normalize the angle between -pi to pi
-//    while(y(2) > M_PI){
-//        y(2) -= M_PI_2;
+//    while(y(2) > M_PI_2){
+//        y(2) -= M_PI_4;
 //    }
 //
-//    while(y(2) < -M_PI){
-//        y(2) += M_PI_2;
+//    while(y(2) < -M_PI_2){
+//        y(2) += M_PI_4;
 //    }
 
     Eigen::Matrix3f S = jH * PPred * jH.transpose() + R;
@@ -87,57 +87,22 @@ void EKF::ekf_estimation(const Eigen::Vector3f& z, const Eigen::Vector2f& u)
 
 void EKF::update(const tf2::Transform &obs, const geometry_msgs::msg::Twist& cmd, tf2::Transform &res) {
     auto origin = obs.getOrigin();
-    auto theta = obs.getRotation().getAngle();
-    double w = -cmd.angular.z;
-    theta = fmod(theta - M_PI, 2 * M_PI);
-    std::cout << "theta " << theta << std::endl;
-//
-//    if(abs(theta) < M_PI_2)
-//        theta = - theta;
+    double roll, pitch, theta;
+    auto q = obs.getRotation();
+    tf2::Matrix3x3 m(q);
+    m.getRPY(roll, pitch, theta);
 
-//    double x = origin.x();
-//    double y = origin.y();
-//
-//    if(x > 0 && y > 0)
-//    {
-//
-//    }
-//    else if (x < 0 && y > 0)
-//    {
-//
-//    }
-//    else if (x < 0 && y < 0)
-//    {
-//        theta = -theta;
-//        w = - w;
-//    }
-//    else if ( x > 0 && y < 0 )
-//    {
-//
-//    }
-
-
-
-
-
-
-
-
+    double w = cmd.angular.z;
     double v = sqrt(cmd.linear.x * cmd.linear.x + cmd.linear.y * cmd.linear.y );
 
 
-    if(!initialized && v > 0)
+    if(!initialized)
     {
         xEst(0, 0) = origin.x();
         xEst(1, 0) = origin.y();
-        xEst(2, 0) = M_PI_2;
+        xEst(2, 0) = theta;
         xEst(3, 0) = v;
         initialized = true;
-    }
-    else if (!initialized && v == 0)
-    {
-        res = obs;
-        return;
     }
 
     Eigen::Vector3f z(origin.x(), origin.y(), theta);
@@ -146,9 +111,9 @@ void EKF::update(const tf2::Transform &obs, const geometry_msgs::msg::Twist& cmd
     ekf_estimation(z, u);
 
     res.setOrigin(tf2::Vector3(xEst(0, 0), xEst(1, 0), origin.z()));
-    tf2::Quaternion q;
-    q.setRPY(0, 0, xEst(2, 0));
-    res.setRotation(q);
+    tf2::Quaternion q2;
+    q2.setRPY(0, 0, xEst(2, 0));
+    res.setRotation(q2);
 
 }
 
@@ -160,16 +125,16 @@ EKF::EKF(const double dt) : DT(dt)
 
     // Motional model covariance
     Q = Eigen::Matrix4f::Identity();
-    Q(0,0)=0.01 * 0.01;
-    Q(1,1)=0.01 * 0.01;
-    Q(2,2)= pow((1.0/180 * M_PI) , 2);
+    Q(0,0)=0.01 * 0.05;
+    Q(1,1)=0.01 * 0.05;
+    Q(2,2)= (1.0/180 * M_PI);
 //    Q(2,2)= 0.01 * 0.005;;
-    Q(3,3)=0.01 * 0.01;
+    Q(3,3)=0.01 * 0.05;
 
     // observation model covariance
     R = Eigen::Matrix3f::Identity();
-    R(0,0)=10.050;
-    R(1,1)=10.050;
+    R(0,0)=2.050;
+    R(1,1)=2.050;
 //    R(2,2)=10.050;
 }
 

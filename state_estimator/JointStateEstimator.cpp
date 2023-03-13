@@ -111,17 +111,29 @@ void JointStateEstimator::cmd_callback(geometry_msgs::msg::Twist::SharedPtr msg)
 
 void JointStateEstimator::sensorFusion()
 {
-    if(odomInit_ == nullptr)
+    if(odomInit_ == nullptr || !fusedData_->updateStatus[ODOM])
         return;
 
 
 //    auto q = fusedData_->odom.getRotation();
 //    fusedData_->apriltag.setRotation(q);
+//    tf2::Transform OdomFilter(fusedData_->apriltag);
     tf2::Transform OdomFilter(fusedData_->apriltag);
-//    ekf_->update(fusedData_->apriltag, fusedData_->odomTwsit, OdomFilter);
-//    fusedData_->apriltag.setOrigin(OdomFilter.getOrigin());
-    // consider control input
-//    ekf_->update(fusedData_->apriltag, fusedData_->cmd, OdomFilter);
+
+    double roll, pitch, yaw;
+    auto q = fusedData_->odom.getRotation();
+    tf2::Matrix3x3 m(q);
+    m.getRPY(roll, pitch, yaw);
+    double theta = fmod(yaw + M_PI, 2 * M_PI) - M_PI_2;
+    q.setRPY(0, 0, theta);
+    OdomFilter.setRotation(q);
+
+
+
+    ekf_->update(OdomFilter, fusedData_->odomTwsit, OdomFilter);
+//     consider control input
+    ekf_->update(OdomFilter, fusedData_->cmd, OdomFilter);
+    OdomFilter.setRotation(q);
 
 //    auto newAngle = OdomFilter.getRotation();
 //    double finalAngle = fmod(newAngle.getAngle() + 3 * M_PI_2, 2 * M_PI);
