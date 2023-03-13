@@ -1,5 +1,5 @@
 find_package(Eigen3 REQUIRED)
-add_executable(create3_state_estimator state_estimator_node.cpp EKF.cpp EKF.h EKF.h)
+add_executable(create3_state_estimator state_estimator_node.cpp EKF.cpp EKF.h EKF.h FilterBase.h FilterBase.h StateViz.cpp StateViz.h ComplementaryFilter.h ComplementaryFilter.h StateEstimatorBase.h StateEstimatorBase.h JointStateEstimator.cpp JointStateEstimator.h)
 include_directories(${Eigen_INCLUDE_DIRS})
 ament_target_dependencies(
         create3_state_estimator

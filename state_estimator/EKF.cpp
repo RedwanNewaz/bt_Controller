@@ -23,8 +23,9 @@ Eigen::Vector4f EKF::motion_model(const Eigen::Vector4f &x, const Eigen::Vector2
             DT * std::sin(x(2,0)),  0,
             0.0,  DT,
             1.0,  0.0;
+    Eigen::Vector4f xPred =  F_ * x + B_ * u;
 
-    return F_ * x + B_ * u;
+    return xPred;
 }
 
 Eigen::Matrix4f EKF::jacobF(const Eigen::Vector4f& x, const Eigen::Vector2f& u) const 
@@ -40,33 +41,46 @@ Eigen::Matrix4f EKF::jacobF(const Eigen::Vector4f& x, const Eigen::Vector2f& u) 
 }
 
 //observation mode H
-Eigen::Vector2f EKF::observation_model(const Eigen::Vector4f& x) const 
+Eigen::Vector3f EKF::observation_model(const Eigen::Vector4f& x) const
 {
-    Eigen::Matrix<float, 2, 4> H_;
+    Eigen::Matrix<float, 3, 4> H_;
     H_<< 1, 0, 0, 0,
-            0, 1, 0, 0;
+         0, 1, 0, 0,
+         0, 0, 1, 0;
     return H_ * x;
 }
 
-Eigen::Matrix<float, 2, 4> EKF::jacobH()const
+Eigen::Matrix<float, 3, 4> EKF::jacobH()const
 {
-    Eigen::Matrix<float, 2, 4> jH_;
+    Eigen::Matrix<float, 3, 4> jH_;
     jH_<< 1, 0, 0, 0,
-            0, 1, 0, 0;
+          0, 1, 0, 0,
+          0, 0, 1, 0;
     return jH_;
 }
 
-void EKF::ekf_estimation(const Eigen::Vector2f& z, const Eigen::Vector2f& u)
+void EKF::ekf_estimation(const Eigen::Vector3f& z, const Eigen::Vector2f& u)
 {
     Eigen::Vector4f xPred = motion_model(xEst, u);
     Eigen::Matrix4f jF = jacobF(xPred, u);
     Eigen::Matrix4f PPred = jF * PEst * jF.transpose() + Q;
 
-    Eigen::Matrix<float, 2, 4> jH = jacobH();
-    Eigen::Vector2f zPred = observation_model(xPred);
-    Eigen::Vector2f y = z - zPred;
-    Eigen::Matrix2f S = jH * PPred * jH.transpose() + R;
-    Eigen::Matrix<float, 4, 2> K = PPred * jH.transpose() * S.inverse();
+    Eigen::Matrix<float, 3, 4> jH = jacobH();
+    Eigen::Vector3f zPred = observation_model(xPred);
+    Eigen::Vector3f y = z - zPred;
+
+//    // borrowed from https://github.com/JunshengFu/tracking-with-Extended-Kalman-Filter/blob/master/src/kalman_filter.cpp
+//    // normalize the angle between -pi to pi
+//    while(y(2) > M_PI){
+//        y(2) -= M_PI_2;
+//    }
+//
+//    while(y(2) < -M_PI){
+//        y(2) += M_PI_2;
+//    }
+
+    Eigen::Matrix3f S = jH * PPred * jH.transpose() + R;
+    Eigen::Matrix<float, 4, 3> K = PPred * jH.transpose() * S.inverse();
     xEst = xPred + K * y;
     PEst = (Eigen::Matrix4f::Identity() - K * jH) * PPred;
 }
@@ -74,19 +88,59 @@ void EKF::ekf_estimation(const Eigen::Vector2f& z, const Eigen::Vector2f& u)
 void EKF::update(const tf2::Transform &obs, const geometry_msgs::msg::Twist& cmd, tf2::Transform &res) {
     auto origin = obs.getOrigin();
     auto theta = obs.getRotation().getAngle();
-    double v = sqrt(cmd.linear.x * cmd.linear.x + cmd.linear.y * cmd.linear.y );
-    double w = cmd.angular.z;
+    double w = -cmd.angular.z;
+    theta = fmod(theta - M_PI, 2 * M_PI);
+    std::cout << "theta " << theta << std::endl;
+//
+//    if(abs(theta) < M_PI_2)
+//        theta = - theta;
 
-    if(!initialized)
+//    double x = origin.x();
+//    double y = origin.y();
+//
+//    if(x > 0 && y > 0)
+//    {
+//
+//    }
+//    else if (x < 0 && y > 0)
+//    {
+//
+//    }
+//    else if (x < 0 && y < 0)
+//    {
+//        theta = -theta;
+//        w = - w;
+//    }
+//    else if ( x > 0 && y < 0 )
+//    {
+//
+//    }
+
+
+
+
+
+
+
+
+    double v = sqrt(cmd.linear.x * cmd.linear.x + cmd.linear.y * cmd.linear.y );
+
+
+    if(!initialized && v > 0)
     {
         xEst(0, 0) = origin.x();
         xEst(1, 0) = origin.y();
-        xEst(2, 0) = theta;
+        xEst(2, 0) = M_PI_2;
         xEst(3, 0) = v;
         initialized = true;
     }
+    else if (!initialized && v == 0)
+    {
+        res = obs;
+        return;
+    }
 
-    Eigen::Vector2f z(origin.x(), origin.y());
+    Eigen::Vector3f z(origin.x(), origin.y(), theta);
 
     const Eigen::Vector2f u(v, w);
     ekf_estimation(z, u);
@@ -109,12 +163,14 @@ EKF::EKF(const double dt) : DT(dt)
     Q(0,0)=0.01 * 0.01;
     Q(1,1)=0.01 * 0.01;
     Q(2,2)= pow((1.0/180 * M_PI) , 2);
+//    Q(2,2)= 0.01 * 0.005;;
     Q(3,3)=0.01 * 0.01;
 
     // observation model covariance
-    R = Eigen::Matrix2f::Identity();
+    R = Eigen::Matrix3f::Identity();
     R(0,0)=10.050;
     R(1,1)=10.050;
+//    R(2,2)=10.050;
 }
 
 
