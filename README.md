@@ -47,15 +47,10 @@ ros2 pkg create --build-type ament_cmake --node-name create3_path_follower creat
 2. create gui interface using qt creator
    1. simulation 
       1. gazebo 
-      2. ros bag 
-         3. Node dependency 
-            4. bag player 
-               5. Filter options
-                  1. EKF
-                  2. LowPass
-            5. gazebo 
-            6. state_estimator 
-            7. DWA 
+      2. ros bag
+      3. Filter options 
+          1. EKF
+          2. LowPass
    2. experiment 
       1. Node dependency 
          1. joystic 
@@ -65,7 +60,12 @@ ros2 pkg create --build-type ament_cmake --node-name create3_path_follower creat
       2. Filter options 
          1. EKF 
          2. LowPass
-   3. create a desktop icon 
+   3. Node dependency
+      1. bag player
+      2. gazebo
+      3. state_estimator
+      4. DWA
+   4. create a desktop icon 
 3. modify dwa based create3_controller 
    1. integrate safety factor from ir_intensities
    2. use map for efficient navigation
